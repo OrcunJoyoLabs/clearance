@@ -12,8 +12,18 @@ struct WorkspaceView: View {
         } detail: {
             Group {
                 if let session = viewModel.activeSession {
-                    let parsed = FrontmatterParser().parse(markdown: session.content)
-                    RenderedMarkdownView(document: parsed)
+                    switch viewModel.mode {
+                    case .view:
+                        let parsed = FrontmatterParser().parse(markdown: session.content)
+                        RenderedMarkdownView(document: parsed)
+                    case .edit:
+                        CodeMirrorEditorView(
+                            text: Binding(
+                                get: { session.content },
+                                set: { session.content = $0 }
+                            )
+                        )
+                    }
                 } else {
                     ContentUnavailableView("Open a Markdown File", systemImage: "doc.text")
                 }
@@ -21,6 +31,16 @@ struct WorkspaceView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Picker("Mode", selection: $viewModel.mode) {
+                    ForEach(WorkspaceMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+                .disabled(viewModel.activeSession == nil)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button("Open") {
                     viewModel.promptAndOpenFile()

@@ -4,6 +4,7 @@ import Foundation
 final class WorkspaceViewModel: ObservableObject {
     @Published var activeSession: DocumentSession?
     @Published var errorMessage: String?
+    @Published var mode: WorkspaceMode = .view
 
     let recentFilesStore: RecentFilesStore
 
