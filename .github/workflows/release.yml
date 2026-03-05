@@ -78,20 +78,42 @@ jobs:
           set -euo pipefail
 
           APP_PATH="${{ steps.build.outputs.app_path }}"
+          SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION_SIGNING_IDENTITY"
 
-          while IFS= read -r component; do
-            codesign --force --timestamp --options runtime --sign "$DEVELOPER_ID_APPLICATION_SIGNING_IDENTITY" "$component"
-          done < <(
-            find "$APP_PATH/Contents/Frameworks" \
-              \( -name "*.framework" -o -name "*.dylib" -o -name "*.xpc" -o -name "*.bundle" \) \
-              -print \
-              | awk '{ print length($0) " " $0 }' \
-              | sort -rn \
-              | cut -d' ' -f2-
-          )
+          sign_path() {
+            local path="$1"
+            if [ -e "$path" ]; then
+              codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$path"
+            fi
+          }
 
-          codesign --force --timestamp --options runtime --sign "$DEVELOPER_ID_APPLICATION_SIGNING_IDENTITY" "$APP_PATH/Contents/MacOS/$APP_NAME"
-          codesign --force --timestamp --options runtime --sign "$DEVELOPER_ID_APPLICATION_SIGNING_IDENTITY" "$APP_PATH"
+          if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+            while IFS= read -r executable; do
+              sign_path "$executable"
+            done < <(
+              find "$APP_PATH/Contents/Frameworks" \
+                -type f \
+                -perm -111 \
+                -print \
+                | awk '{ print length($0) " " $0 }' \
+                | sort -rn \
+                | cut -d' ' -f2-
+            )
+
+            while IFS= read -r component; do
+              sign_path "$component"
+            done < <(
+              find "$APP_PATH/Contents/Frameworks" \
+                \( -name "*.framework" -o -name "*.dylib" -o -name "*.xpc" -o -name "*.bundle" -o -name "*.app" \) \
+                -print \
+                | awk '{ print length($0) " " $0 }' \
+                | sort -rn \
+                | cut -d' ' -f2-
+            )
+          fi
+
+          sign_path "$APP_PATH/Contents/MacOS/$APP_NAME"
+          sign_path "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           spctl --assess --type execute --verbose "$APP_PATH" || true
 
@@ -110,13 +132,35 @@ jobs:
 
           NOTARY_ZIP="$RUNNER_TEMP/$APP_NAME-notary.zip"
           APP_ZIP="$ARTIFACTS_DIR/$APP_NAME-$VERSION-macOS.zip"
+          NOTARY_SUBMIT_OUTPUT="$RUNNER_TEMP/notary-submit.json"
+          NOTARY_LOG_OUTPUT="$RUNNER_TEMP/notary-log.json"
 
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$NOTARY_ZIP"
           xcrun notarytool submit "$NOTARY_ZIP" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait \
+            --output-format json > "$NOTARY_SUBMIT_OUTPUT"
+
+          SUBMISSION_ID="$(python3 -c 'import json, pathlib, sys; print(json.loads(pathlib.Path(sys.argv[1]).read_text()).get("id", ""))' "$NOTARY_SUBMIT_OUTPUT")"
+          STATUS="$(python3 -c 'import json, pathlib, sys; print(json.loads(pathlib.Path(sys.argv[1]).read_text()).get("status", ""))' "$NOTARY_SUBMIT_OUTPUT")"
+
+          echo "Notary submission ID: $SUBMISSION_ID"
+          echo "Notary status: $STATUS"
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "Notary submission was not accepted. Fetching full notary log..."
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json > "$NOTARY_LOG_OUTPUT" || true
+            if [ -s "$NOTARY_LOG_OUTPUT" ]; then
+              cat "$NOTARY_LOG_OUTPUT"
+            fi
+            exit 1
+          fi
 
           xcrun stapler staple "$APP_PATH"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$APP_ZIP"
