@@ -8,6 +8,7 @@ final class DocumentSessionTests: XCTestCase {
 
         XCTAssertEqual(session.content, "hello")
         XCTAssertFalse(session.isDirty)
+        XCTAssertFalse(session.hasExternalChanges)
     }
 
     func testEditingMarksSessionDirty() throws {
@@ -33,6 +34,49 @@ final class DocumentSessionTests: XCTestCase {
         let disk = try String(contentsOf: fileURL, encoding: .utf8)
         XCTAssertEqual(disk, "saved")
         XCTAssertFalse(session.isDirty)
+    }
+
+    func testDetectsExternalFileChange() throws {
+        let fileURL = try makeTempMarkdown(contents: "hello")
+        let session = try DocumentSession(url: fileURL, autosaveDelay: 1.0)
+
+        try "outside update".write(to: fileURL, atomically: true, encoding: .utf8)
+        session.checkForExternalChanges()
+
+        XCTAssertTrue(session.hasExternalChanges)
+    }
+
+    func testReloadFromDiskUpdatesSessionAndClearsExternalFlag() throws {
+        let fileURL = try makeTempMarkdown(contents: "hello")
+        let session = try DocumentSession(url: fileURL, autosaveDelay: 1.0)
+        session.content = "local edit"
+
+        try "outside update".write(to: fileURL, atomically: true, encoding: .utf8)
+        session.checkForExternalChanges()
+        try session.reloadFromDisk()
+
+        XCTAssertEqual(session.content, "outside update")
+        XCTAssertFalse(session.isDirty)
+        XCTAssertFalse(session.hasExternalChanges)
+    }
+
+    func testKeepingCurrentAcknowledgesCurrentExternalVersion() throws {
+        let fileURL = try makeTempMarkdown(contents: "hello")
+        let session = try DocumentSession(url: fileURL, autosaveDelay: 1.0)
+
+        try "outside one".write(to: fileURL, atomically: true, encoding: .utf8)
+        session.checkForExternalChanges()
+        XCTAssertTrue(session.hasExternalChanges)
+
+        session.acknowledgeExternalChangesKeepingCurrent()
+        XCTAssertFalse(session.hasExternalChanges)
+
+        session.checkForExternalChanges()
+        XCTAssertFalse(session.hasExternalChanges)
+
+        try "outside two".write(to: fileURL, atomically: true, encoding: .utf8)
+        session.checkForExternalChanges()
+        XCTAssertTrue(session.hasExternalChanges)
     }
 
     private func makeTempMarkdown(contents: String) throws -> URL {

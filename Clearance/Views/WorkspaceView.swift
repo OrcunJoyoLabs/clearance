@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WorkspaceView: View {
     @StateObject private var viewModel: WorkspaceViewModel
+    @State private var isPopOutDropTargeted = false
     private let popoutWindowController: PopoutWindowController
 
     init(
@@ -28,7 +29,39 @@ struct WorkspaceView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                if isPopOutDropTargeted {
+                    Label("Drop To Pop Out", systemImage: "arrow.up.forward.square")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(12)
+                }
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let path = items.first else {
+                    return false
+                }
+
+                return popOutDraggedPath(path)
+            } isTargeted: { isTargeted in
+                isPopOutDropTargeted = isTargeted
+            }
             .navigationTitle(viewModel.windowTitle)
+            .alert("File Changed On Disk", isPresented: Binding(
+                get: { viewModel.externalChangeDocumentName != nil },
+                set: { _ in }
+            ), actions: {
+                Button("Reload") {
+                    viewModel.reloadActiveFromDisk()
+                }
+                Button("Keep Current", role: .cancel) {
+                    viewModel.keepCurrentVersionAfterExternalChange()
+                }
+            }, message: {
+                Text("“\(viewModel.externalChangeDocumentName ?? "This file")” changed outside Clearance.")
+            })
         }
         .focusedSceneValue(\.workspaceCommandActions, WorkspaceCommandActions(
             openFile: { viewModel.promptAndOpenFile() },
@@ -96,5 +129,20 @@ struct WorkspaceView: View {
         if let session = viewModel.open(recentEntry: entry) {
             popoutWindowController.openWindow(for: session, mode: viewModel.mode)
         }
+    }
+
+    private func popOutDraggedPath(_ path: String) -> Bool {
+        if let entry = viewModel.recentFilesStore.entries.first(where: { $0.path == path }) {
+            popOut(entry: entry)
+            return true
+        }
+
+        let url = URL(fileURLWithPath: path)
+        guard let session = viewModel.open(url: url) else {
+            return false
+        }
+
+        popoutWindowController.openWindow(for: session, mode: viewModel.mode)
+        return true
     }
 }

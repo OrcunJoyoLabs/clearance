@@ -28,6 +28,7 @@ struct RecentFilesSidebar: View {
                     onPopOut(entry)
                 }
             }
+            .draggable(entry.path)
         }
         .listStyle(.sidebar)
     }
