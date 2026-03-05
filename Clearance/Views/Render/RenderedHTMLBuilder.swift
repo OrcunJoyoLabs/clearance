@@ -344,9 +344,9 @@ struct RenderedHTMLBuilder {
 
     private func richRendererScripts() -> InlineScriptBundle {
         let scriptSections = [
-            ("katex", vendorScript(named: "katex.min", subdirectory: "vendor/katex")),
-            ("auto-render", vendorScript(named: "auto-render.min", subdirectory: "vendor/katex")),
-            ("mermaid", vendorScript(named: "mermaid.min", subdirectory: "vendor/mermaid")),
+            ("katex", vendorScript(named: "katex.min")),
+            ("auto-render", vendorScript(named: "auto-render.min")),
+            ("mermaid", vendorScript(named: "mermaid.min")),
             ("bootstrap", richRendererBootstrapScript())
         ]
 
@@ -368,8 +368,8 @@ struct RenderedHTMLBuilder {
         )
     }
 
-    private func vendorScript(named name: String, subdirectory: String) -> String {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "js", subdirectory: subdirectory),
+    private func vendorScript(named name: String) -> String {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "js"),
               let contents = try? String(contentsOf: url) else {
             return ""
         }

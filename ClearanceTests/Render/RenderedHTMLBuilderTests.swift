@@ -135,7 +135,10 @@ final class RenderedHTMLBuilderTests: XCTestCase {
 
         let html = RenderedHTMLBuilder().build(document: document)
 
-        XCTAssertTrue(html.contains("data-clearance-rich-renderers"))
+        XCTAssertTrue(html.contains("data-clearance-rich-renderers=\"katex\""))
+        XCTAssertTrue(html.contains("data-clearance-rich-renderers=\"auto-render\""))
+        XCTAssertTrue(html.contains("data-clearance-rich-renderers=\"mermaid\""))
+        XCTAssertTrue(html.contains("data-clearance-rich-renderers=\"bootstrap\""))
         XCTAssertTrue(html.contains("renderMathInElement"))
         XCTAssertTrue(html.contains("mermaid.initialize"))
         XCTAssertTrue(html.contains("script-src"))
