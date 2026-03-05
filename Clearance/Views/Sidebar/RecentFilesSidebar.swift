@@ -4,50 +4,66 @@ import SwiftUI
 struct RecentFilesSidebar: View {
     let entries: [RecentFileEntry]
     @Binding var selectedPath: String?
+    let onOpenFile: () -> Void
     let onSelect: (RecentFileEntry) -> Void
     let onOpenInNewWindow: (RecentFileEntry) -> Void
 
     var body: some View {
-        List(selection: $selectedPath) {
-            ForEach(entries) { entry in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.displayName)
-                        .font(.body)
-                        .lineLimit(1)
-                    Text(entry.directoryPath)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onOpenFile) {
+                    Label("Open Markdown…", systemImage: "folder.badge.plus")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .tag(entry.path)
-                .onTapGesture {
-                    selectedPath = entry.path
-                    onSelect(entry)
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            List(selection: $selectedPath) {
+                ForEach(entries) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.displayName)
+                            .font(.body)
+                            .lineLimit(1)
+                        Text(entry.directoryPath)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .tag(entry.path)
+                    .onTapGesture {
+                        selectedPath = entry.path
+                        onSelect(entry)
+                    }
+                    .contextMenu {
+                        contextMenuActions(for: entry)
+                    }
+                    .draggable(entry.path)
                 }
-                .contextMenu {
+            }
+            .contextMenu(forSelectionType: String.self) { selectedPaths in
+                if let path = selectedPaths.first,
+                   let entry = entries.first(where: { $0.path == path }) {
                     contextMenuActions(for: entry)
                 }
-                .draggable(entry.path)
             }
-        }
-        .contextMenu(forSelectionType: String.self) { selectedPaths in
-            if let path = selectedPaths.first,
-               let entry = entries.first(where: { $0.path == path }) {
-                contextMenuActions(for: entry)
-            }
-        }
-        .onChange(of: selectedPath) { _, newPath in
-            guard let newPath,
-                  let entry = entries.first(where: { $0.path == newPath }) else {
-                return
-            }
+            .onChange(of: selectedPath) { _, newPath in
+                guard let newPath,
+                      let entry = entries.first(where: { $0.path == newPath }) else {
+                    return
+                }
 
-            onSelect(entry)
+                onSelect(entry)
+            }
+            .listStyle(.sidebar)
         }
-        .listStyle(.sidebar)
     }
 
     @ViewBuilder

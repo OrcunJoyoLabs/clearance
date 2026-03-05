@@ -17,7 +17,8 @@ struct WorkspaceView: View {
         NavigationSplitView {
             RecentFilesSidebar(
                 entries: viewModel.recentFilesStore.entries,
-                selectedPath: $viewModel.selectedRecentPath
+                selectedPath: $viewModel.selectedRecentPath,
+                onOpenFile: { viewModel.promptAndOpenFile() }
             ) { entry in
                 selectRecentEntry(entry)
             } onOpenInNewWindow: { entry in
@@ -28,7 +29,15 @@ struct WorkspaceView: View {
                 if let session = viewModel.activeSession {
                     DocumentSurfaceView(session: session, mode: $viewModel.mode)
                 } else {
-                    ContentUnavailableView("Open a Markdown File", systemImage: "doc.text")
+                    ContentUnavailableView {
+                        Label("Open a Markdown File", systemImage: "doc.text")
+                    } description: {
+                        Text("Choose a file from the sidebar, or open one directly.")
+                    } actions: {
+                        Button("Open Markdown…") {
+                            viewModel.promptAndOpenFile()
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
