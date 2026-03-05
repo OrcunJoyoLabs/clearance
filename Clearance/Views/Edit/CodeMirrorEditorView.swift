@@ -136,7 +136,7 @@ final class EditorTextView: NSTextView {
 final class MarkdownSyntaxHighlighter {
     private let headingRegex = try! NSRegularExpression(pattern: "(?m)^(#{1,6})\\s+(.+)$")
     private let frontmatterRegex = try! NSRegularExpression(pattern: "(?s)\\A---\\n.*?\\n---\\n?")
-    private let fencedCodeRegex = try! NSRegularExpression(pattern: "(?s)```([A-Za-z0-9_+-]*)[^\\n]*\\n(.*?)\\n```")
+    private let fencedCodeRegex = try! NSRegularExpression(pattern: "(?s)(?:```|~~~)([A-Za-z0-9_+-]*)[^\\n]*\\n(.*?)\\n?(?:```|~~~)")
     private let inlineCodeRegex = try! NSRegularExpression(pattern: "`[^`\\n]+`")
     private let linkRegex = try! NSRegularExpression(pattern: "\\[[^\\]]+\\]\\([^\\)]+\\)")
     private let strongRegex = try! NSRegularExpression(pattern: "(\\*\\*|__)(?=\\S)(.+?\\S)\\1")

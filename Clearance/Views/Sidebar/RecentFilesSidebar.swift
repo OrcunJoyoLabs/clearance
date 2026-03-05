@@ -28,23 +28,15 @@ struct RecentFilesSidebar: View {
                     onSelect(entry)
                 }
                 .contextMenu {
-                    Button("Open In New Window") {
-                        onOpenInNewWindow(entry)
-                    }
-
-                    Divider()
-
-                    Button("Show in Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([entry.fileURL])
-                    }
-
-                    Button("Copy Path") {
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(entry.path, forType: .string)
-                    }
+                    contextMenuActions(for: entry)
                 }
                 .draggable(entry.path)
+            }
+        }
+        .contextMenu(forSelectionType: String.self) { selectedPaths in
+            if let path = selectedPaths.first,
+               let entry = entries.first(where: { $0.path == path }) {
+                contextMenuActions(for: entry)
             }
         }
         .onChange(of: selectedPath) { _, newPath in
@@ -56,5 +48,27 @@ struct RecentFilesSidebar: View {
             onSelect(entry)
         }
         .listStyle(.sidebar)
+    }
+
+    @ViewBuilder
+    private func contextMenuActions(for entry: RecentFileEntry) -> some View {
+        Button("Open In New Window") {
+            selectedPath = entry.path
+            onOpenInNewWindow(entry)
+        }
+
+        Divider()
+
+        Button("Show in Finder") {
+            selectedPath = entry.path
+            NSWorkspace.shared.activateFileViewerSelecting([entry.fileURL])
+        }
+
+        Button("Copy Path") {
+            selectedPath = entry.path
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(entry.path, forType: .string)
+        }
     }
 }

@@ -2,8 +2,21 @@ import Foundation
 import Down
 
 struct RenderedHTMLBuilder {
+    private let codeBlockHTMLRegex = try! NSRegularExpression(pattern: "(?s)<pre><code(?: class=\"language-([^\"]+)\")?>(.*?)</code></pre>")
+    private let codeStringRegex = try! NSRegularExpression(pattern: "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`(?:\\\\.|[^`\\\\])*`")
+    private let codeNumberRegex = try! NSRegularExpression(pattern: "\\b\\d+(?:\\.\\d+)?\\b")
+    private let codeLineCommentRegex = try! NSRegularExpression(pattern: "//.*$", options: [.anchorsMatchLines])
+    private let codeBlockCommentRegex = try! NSRegularExpression(pattern: "(?s)/\\*.*?\\*/")
+    private let hashCommentRegex = try! NSRegularExpression(pattern: "#.*$", options: [.anchorsMatchLines])
+    private let yamlKeyRegex = try! NSRegularExpression(pattern: "(?m)^\\s*(?:-\\s+)?([A-Za-z0-9_.-]+)(?=\\s*:)")
+    private let yamlLiteralRegex = try! NSRegularExpression(pattern: "\\b(?:true|false|null|yes|no|on|off)\\b", options: [.caseInsensitive])
+    private let swiftKeywordRegex = try! NSRegularExpression(pattern: "\\b(?:actor|as|associatedtype|async|await|break|case|catch|class|continue|default|defer|do|else|enum|extension|fallthrough|false|for|func|guard|if|import|in|init|inout|internal|is|let|nil|operator|private|protocol|public|repeat|return|self|static|struct|subscript|super|switch|throw|throws|true|try|typealias|var|where|while)\\b")
+    private let jsKeywordRegex = try! NSRegularExpression(pattern: "\\b(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|if|import|in|instanceof|interface|let|new|null|private|protected|public|readonly|return|static|switch|this|throw|true|try|type|typeof|var|void|while|with|yield)\\b")
+    private let genericKeywordRegex = try! NSRegularExpression(pattern: "\\b(?:if|else|for|while|switch|case|break|continue|return|func|function|class|struct|enum|let|var|const|import|from|export|true|false|null|nil)\\b")
+
     func build(document: ParsedMarkdownDocument) -> String {
         let bodyHTML = (try? Down(markdownString: document.body).toHTML()) ?? "<pre>\(escapeHTML(document.body))</pre>"
+        let highlightedBodyHTML = highlightCodeBlocks(in: bodyHTML)
         let frontmatterHTML = frontmatterTableHTML(from: document.flattenedFrontmatter)
 
         return """
@@ -12,7 +25,7 @@ struct RenderedHTMLBuilder {
         <head>
           <meta charset=\"utf-8\" />
           <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-          <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: file:;\" />
+          <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data: file:;\" />
           <style>
           \(stylesheet())
           </style>
@@ -20,9 +33,8 @@ struct RenderedHTMLBuilder {
         <body>
           <main class=\"document\">
             \(frontmatterHTML)
-            <article class=\"markdown\">\(bodyHTML)</article>
+            <article class=\"markdown\">\(highlightedBodyHTML)</article>
           </main>
-          <script>\(syntaxHighlighterScript())</script>
         </body>
         </html>
         """
@@ -48,6 +60,151 @@ struct RenderedHTMLBuilder {
           </table>
         </section>
         """
+    }
+
+    private func highlightCodeBlocks(in html: String) -> String {
+        let range = NSRange(location: 0, length: (html as NSString).length)
+        let matches = codeBlockHTMLRegex.matches(in: html, range: range)
+        guard !matches.isEmpty else {
+            return html
+        }
+
+        var result = html
+        for match in matches.reversed() {
+            let nsHTML = html as NSString
+            let languageRange = match.range(at: 1)
+            let language: String
+            if languageRange.location == NSNotFound {
+                language = ""
+            } else {
+                language = nsHTML.substring(with: languageRange).lowercased()
+            }
+
+            let codeHTML = nsHTML.substring(with: match.range(at: 2))
+            let decodedCode = decodeHTMLEntities(codeHTML)
+            let highlightedCode = annotateCode(decodedCode, language: language)
+            let languageClassAttribute = language.isEmpty ? "" : " class=\"language-\(escapeHTML(language))\""
+            let replacement = "<pre><code\(languageClassAttribute)>\(highlightedCode)</code></pre>"
+            result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
+        }
+
+        return result
+    }
+
+    private func annotateCode(_ code: String, language: String) -> String {
+        let tokens = selectNonOverlappingTokens(codeTokens(in: code, language: language))
+        return renderCode(code, tokens: tokens)
+    }
+
+    private func codeTokens(in code: String, language: String) -> [TokenSpan] {
+        let fullRange = NSRange(location: 0, length: (code as NSString).length)
+        var tokens: [TokenSpan] = []
+
+        addMatches(codeNumberRegex, in: code, range: fullRange, className: "hl-number", priority: 10, to: &tokens)
+
+        switch language {
+        case "yaml", "yml":
+            addMatches(yamlLiteralRegex, in: code, range: fullRange, className: "hl-keyword", priority: 20, to: &tokens)
+            addMatches(yamlKeyRegex, in: code, range: fullRange, className: "hl-property", priority: 20, captureGroup: 1, to: &tokens)
+            addMatches(hashCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+        case "swift":
+            addMatches(swiftKeywordRegex, in: code, range: fullRange, className: "hl-keyword", priority: 20, to: &tokens)
+            addMatches(codeBlockCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+            addMatches(codeLineCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+        case "bash", "sh", "zsh", "shell":
+            addMatches(hashCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+            addMatches(genericKeywordRegex, in: code, range: fullRange, className: "hl-keyword", priority: 20, to: &tokens)
+        case "js", "mjs", "cjs", "jsx", "ts", "tsx", "typescript", "javascript", "json", "jsonc":
+            addMatches(jsKeywordRegex, in: code, range: fullRange, className: "hl-keyword", priority: 20, to: &tokens)
+            addMatches(codeBlockCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+            addMatches(codeLineCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+        default:
+            addMatches(genericKeywordRegex, in: code, range: fullRange, className: "hl-keyword", priority: 20, to: &tokens)
+            addMatches(codeBlockCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+            addMatches(codeLineCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+            addMatches(hashCommentRegex, in: code, range: fullRange, className: "hl-comment", priority: 40, to: &tokens)
+        }
+
+        addMatches(codeStringRegex, in: code, range: fullRange, className: "hl-string", priority: 30, to: &tokens)
+        return tokens
+    }
+
+    private func addMatches(
+        _ regex: NSRegularExpression,
+        in text: String,
+        range: NSRange,
+        className: String,
+        priority: Int,
+        captureGroup: Int = 0,
+        to tokens: inout [TokenSpan]
+    ) {
+        for match in regex.matches(in: text, range: range) {
+            let tokenRange = match.range(at: captureGroup)
+            guard tokenRange.location != NSNotFound,
+                  tokenRange.length > 0 else {
+                continue
+            }
+
+            tokens.append(TokenSpan(range: tokenRange, cssClass: className, priority: priority))
+        }
+    }
+
+    private func selectNonOverlappingTokens(_ tokens: [TokenSpan]) -> [TokenSpan] {
+        let prioritized = tokens.sorted { lhs, rhs in
+            if lhs.priority != rhs.priority {
+                return lhs.priority > rhs.priority
+            }
+            if lhs.range.location != rhs.range.location {
+                return lhs.range.location < rhs.range.location
+            }
+            return lhs.range.length > rhs.range.length
+        }
+
+        var selected: [TokenSpan] = []
+        for token in prioritized {
+            let intersects = selected.contains { existing in
+                NSIntersectionRange(existing.range, token.range).length > 0
+            }
+            if !intersects {
+                selected.append(token)
+            }
+        }
+
+        return selected.sorted { $0.range.location < $1.range.location }
+    }
+
+    private func renderCode(_ code: String, tokens: [TokenSpan]) -> String {
+        let nsCode = code as NSString
+        var rendered = ""
+        var cursor = 0
+
+        for token in tokens {
+            let tokenStart = token.range.location
+            if tokenStart > cursor {
+                let plainRange = NSRange(location: cursor, length: tokenStart - cursor)
+                rendered += escapeHTML(nsCode.substring(with: plainRange))
+            }
+
+            let tokenText = nsCode.substring(with: token.range)
+            rendered += "<span class=\"\(token.cssClass)\">\(escapeHTML(tokenText))</span>"
+            cursor = token.range.location + token.range.length
+        }
+
+        if cursor < nsCode.length {
+            let trailingRange = NSRange(location: cursor, length: nsCode.length - cursor)
+            rendered += escapeHTML(nsCode.substring(with: trailingRange))
+        }
+
+        return rendered
+    }
+
+    private func decodeHTMLEntities(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&amp;", with: "&")
     }
 
     private func stylesheet() -> String {
@@ -124,82 +281,6 @@ struct RenderedHTMLBuilder {
         """
     }
 
-    private func syntaxHighlighterScript() -> String {
-        """
-        (function() {
-          function escapeHTML(text) {
-            return text
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;');
-          }
-
-          function annotate(code, language) {
-            var html = escapeHTML(code);
-            const placeholders = [];
-
-            function stash(regex, cssClass) {
-              html = html.replace(regex, function(match) {
-                const token = "\\u0000" + placeholders.length + "\\u0000";
-                placeholders.push('<span class="' + cssClass + '">' + match + '</span>');
-                return token;
-              });
-            }
-
-            const languageName = language.toLowerCase();
-            const isYAML = /^(yaml|yml)$/.test(languageName);
-            const isShell = /^(bash|sh|zsh|shell)$/.test(languageName);
-            const isSwift = languageName === 'swift';
-            const isJSLanguage = /^(js|mjs|cjs|jsx|ts|tsx|typescript|javascript|json|jsonc)$/.test(languageName);
-
-            stash(/"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|`(?:\\\\.|[^`\\\\])*`/g, 'hl-string');
-
-            if (isYAML || isShell) {
-              stash(/#.*$/gm, 'hl-comment');
-            } else {
-              stash(/\\/\\*[\\s\\S]*?\\*\\//g, 'hl-comment');
-              stash(/\\/\\/[^\\n]*/g, 'hl-comment');
-            }
-
-            html = html.replace(/\\b\\d+(?:\\.\\d+)?\\b/g, '<span class="hl-number">$&</span>');
-
-            if (isYAML) {
-              html = html.replace(/(^|\\n)(\\s*[-?]?\\s*)([A-Za-z0-9_.-]+)(\\s*:)/g, '$1$2<span class="hl-property">$3</span>$4');
-              html = html.replace(/\\b(?:true|false|null|yes|no|on|off)\\b/gi, '<span class="hl-keyword">$&</span>');
-            } else if (isSwift) {
-              html = html.replace(/\\b(?:actor|as|associatedtype|async|await|break|case|catch|class|continue|default|defer|do|else|enum|extension|fallthrough|false|for|func|guard|if|import|in|init|inout|internal|is|let|nil|operator|private|protocol|public|repeat|return|self|static|struct|subscript|super|switch|throw|throws|true|try|typealias|var|where|while)\\b/g, '<span class="hl-keyword">$&</span>');
-            } else if (isJSLanguage) {
-              html = html.replace(/\\b(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|if|import|in|instanceof|interface|let|new|null|private|protected|public|readonly|return|static|switch|this|throw|true|try|type|typeof|var|void|while|with|yield)\\b/g, '<span class="hl-keyword">$&</span>');
-            } else {
-              html = html.replace(/\\b(?:if|else|for|while|switch|case|break|continue|return|func|function|class|struct|enum|let|var|const|import|from|export|true|false|null|nil)\\b/g, '<span class="hl-keyword">$&</span>');
-            }
-
-            html = html.replace(/\\u0000(\\d+)\\u0000/g, function(_, index) {
-              return placeholders[Number(index)] || '';
-            });
-
-            return html;
-          }
-
-          function applySyntaxHighlighting() {
-            document.querySelectorAll('pre > code').forEach(function(codeBlock) {
-              const languageClass = Array.from(codeBlock.classList).find(function(className) {
-                return className.indexOf('language-') === 0;
-              });
-              const language = languageClass ? languageClass.slice(9) : '';
-              codeBlock.innerHTML = annotate(codeBlock.textContent || '', language);
-            });
-          }
-
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', applySyntaxHighlighting);
-          } else {
-            applySyntaxHighlighting();
-          }
-        })();
-        """
-    }
-
     private func escapeHTML(_ text: String) -> String {
         text
             .replacingOccurrences(of: "&", with: "&amp;")
@@ -208,4 +289,10 @@ struct RenderedHTMLBuilder {
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
     }
+}
+
+private struct TokenSpan {
+    let range: NSRange
+    let cssClass: String
+    let priority: Int
 }
