@@ -144,6 +144,19 @@ final class RenderedHTMLBuilderTests: XCTestCase {
         XCTAssertTrue(html.contains("Pending"))
     }
 
+    func testTransformsTaskListItemsWhenCheckboxTypeAttributeIsNotFirst() {
+        let body = """
+        <ul>
+        <li><input disabled="" type="checkbox" checked="" /> <p>Done</p></li>
+        </ul>
+        """
+        let document = ParsedMarkdownDocument(body: body, flattenedFrontmatter: [:])
+
+        let html = RenderedHTMLBuilder().build(document: document)
+
+        XCTAssertTrue(html.contains("<li class=\"task-list-item\">"))
+    }
+
     func testRendersGFMStrikethrough() {
         let body = "This is ~~struck~~ text."
         let document = ParsedMarkdownDocument(body: body, flattenedFrontmatter: [:])
