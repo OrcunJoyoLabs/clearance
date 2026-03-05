@@ -90,6 +90,20 @@ th {
   line-height: 1.68;
 }
 
+.markdown li.task-list-item {
+  list-style: none;
+}
+
+.markdown li.task-list-item > p {
+  display: inline;
+  margin: 0;
+}
+
+.markdown li.task-list-item > input[type="checkbox"] {
+  margin: 0 0.5rem 0 0;
+  vertical-align: middle;
+}
+
 .markdown a {
   color: var(--link);
 }

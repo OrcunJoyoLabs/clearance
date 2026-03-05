@@ -4,6 +4,7 @@ import Markdown
 
 struct RenderedHTMLBuilder {
     private let codeBlockHTMLRegex = try! NSRegularExpression(pattern: "(?s)<pre><code(?: class=\"language-([^\"]+)\")?>(.*?)</code></pre>")
+    private let taskListItemHTMLRegex = try! NSRegularExpression(pattern: "(?si)<li>(\\s*<input\\s+type=\"checkbox\"[^>]*>\\s*)")
     private let headingHTMLRegex = try! NSRegularExpression(pattern: "(?is)<h([1-6])([^>]*)>(.*?)</h\\1>")
     private let headingIDAttributeRegex = try! NSRegularExpression(pattern: "(?i)\\bid\\s*=\\s*([\"'])(.*?)\\1")
     private let htmlTagRegex = try! NSRegularExpression(pattern: "(?s)<[^>]+>")
@@ -24,7 +25,8 @@ struct RenderedHTMLBuilder {
         appearance: AppearancePreference = .system
     ) -> String {
         let bodyHTML = HTMLFormatter.format(document.body)
-        let transformedBodyHTML = transformCodeBlocks(in: bodyHTML)
+        let taskListHTML = transformTaskListItems(in: bodyHTML)
+        let transformedBodyHTML = transformCodeBlocks(in: taskListHTML)
         let anchoredBodyHTML = injectHeadingIDs(in: transformedBodyHTML)
         let frontmatterHTML = frontmatterTableHTML(from: document.flattenedFrontmatter)
         let scripts = richRendererScripts()
@@ -112,6 +114,15 @@ struct RenderedHTMLBuilder {
         }
 
         return result
+    }
+
+    private func transformTaskListItems(in html: String) -> String {
+        let range = NSRange(location: 0, length: (html as NSString).length)
+        return taskListItemHTMLRegex.stringByReplacingMatches(
+            in: html,
+            range: range,
+            withTemplate: "<li class=\"task-list-item\">$1"
+        )
     }
 
     private func injectHeadingIDs(in html: String) -> String {
@@ -533,6 +544,9 @@ struct RenderedHTMLBuilder {
         .markdown h3 { font-size: 1.35em; }
         .markdown h4 { font-size: 1.15em; }
         .markdown p, .markdown li { line-height: 1.68; }
+        .markdown li.task-list-item { list-style: none; }
+        .markdown li.task-list-item > p { display: inline; margin: 0; }
+        .markdown li.task-list-item > input[type="checkbox"] { margin: 0 0.5rem 0 0; vertical-align: middle; }
         .markdown a { color: var(--link); }
         .markdown blockquote { border-left: 3px solid var(--quote); margin-left: 0; padding-left: 14px; color: var(--muted); }
         .markdown hr { border: none; border-top: 1px solid var(--rule); }

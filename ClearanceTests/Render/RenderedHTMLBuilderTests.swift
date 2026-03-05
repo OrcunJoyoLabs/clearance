@@ -140,6 +140,7 @@ final class RenderedHTMLBuilderTests: XCTestCase {
 
         XCTAssertTrue(html.contains("type=\"checkbox\""))
         XCTAssertTrue(html.contains("checked=\"\""))
+        XCTAssertTrue(html.contains("task-list-item"))
         XCTAssertTrue(html.contains("Pending"))
     }
 
