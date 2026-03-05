@@ -45,12 +45,16 @@ struct WorkspaceCommandActions {
     let showViewMode: () -> Void
     let showEditMode: () -> Void
     let openInNewWindow: () -> Void
+    let undoInDocument: () -> Bool
+    let redoInDocument: () -> Bool
     let goBack: () -> Void
     let goForward: () -> Void
     let findInDocument: () -> Bool
     let findPreviousInDocument: () -> Bool
     let printDocument: () -> Bool
     let hasActiveSession: Bool
+    let canUndoInDocument: Bool
+    let canRedoInDocument: Bool
     let canGoBack: Bool
     let canGoForward: Bool
     let hasVisibleOutline: Bool
@@ -114,6 +118,32 @@ private struct ClearanceCommands: Commands {
             }
             .keyboardShortcut("p")
             .disabled(actions?.hasActiveSession != true)
+        }
+
+        CommandGroup(replacing: .undoRedo) {
+            Button("Undo") {
+                if let undoInDocument = actions?.undoInDocument {
+                    if !undoInDocument() {
+                        _ = performUndo()
+                    }
+                } else {
+                    _ = performUndo()
+                }
+            }
+            .keyboardShortcut("z")
+            .disabled(actions?.canUndoInDocument != true)
+
+            Button("Redo") {
+                if let redoInDocument = actions?.redoInDocument {
+                    if !redoInDocument() {
+                        _ = performRedo()
+                    }
+                } else {
+                    _ = performRedo()
+                }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .disabled(actions?.canRedoInDocument != true)
         }
 
         CommandMenu("Navigate") {
@@ -201,6 +231,14 @@ private struct ClearanceCommands: Commands {
 
     private func performPrint() -> Bool {
         NSApp.sendAction(#selector(NSView.printView(_:)), to: nil, from: nil)
+    }
+
+    private func performUndo() -> Bool {
+        NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+    }
+
+    private func performRedo() -> Bool {
+        NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
     }
 
     private func showAboutPanel() {

@@ -152,7 +152,7 @@ final class EditorTextView: NSTextView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if handleControlUndoShortcut(event) {
+        if handleUndoShortcut(event) {
             return
         }
 
@@ -164,19 +164,19 @@ final class EditorTextView: NSTextView {
         onAppearanceDidChange?()
     }
 
-    private func handleControlUndoShortcut(_ event: NSEvent) -> Bool {
+    private func handleUndoShortcut(_ event: NSEvent) -> Bool {
         guard let key = event.charactersIgnoringModifiers?.lowercased(),
               key == "z" else {
             return false
         }
 
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if flags == [.control] {
+        if flags == [.control] || flags == [.command] {
             undoManager?.undo()
             return true
         }
 
-        if flags == [.control, .shift] {
+        if flags == [.control, .shift] || flags == [.command, .shift] {
             undoManager?.redo()
             return true
         }

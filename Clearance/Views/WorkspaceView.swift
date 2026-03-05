@@ -128,12 +128,16 @@ struct WorkspaceView: View {
             showViewMode: { if viewModel.activeSession != nil { viewModel.mode = .view } },
             showEditMode: { if viewModel.activeSession != nil { viewModel.mode = .edit } },
             openInNewWindow: { popOutActiveSession() },
+            undoInDocument: { performUndoInDocument() },
+            redoInDocument: { performRedoInDocument() },
             goBack: { _ = viewModel.navigateBack() },
             goForward: { _ = viewModel.navigateForward() },
             findInDocument: { performFindInDocument() },
             findPreviousInDocument: { performFindPreviousInDocument() },
             printDocument: { performPrint() },
             hasActiveSession: viewModel.activeSession != nil,
+            canUndoInDocument: canUndoInDocument,
+            canRedoInDocument: canRedoInDocument,
             canGoBack: viewModel.canNavigateBack,
             canGoForward: viewModel.canNavigateForward,
             hasVisibleOutline: isOutlineVisible,
@@ -375,6 +379,59 @@ struct WorkspaceView: View {
             state?.printJob = nil
         }
         return true
+    }
+
+    private func performUndoInDocument() -> Bool {
+        guard viewModel.mode == .edit,
+              let textView = activeEditorTextView(),
+              let undoManager = textView.undoManager,
+              undoManager.canUndo else {
+            return false
+        }
+
+        undoManager.undo()
+        return true
+    }
+
+    private func performRedoInDocument() -> Bool {
+        guard viewModel.mode == .edit,
+              let textView = activeEditorTextView(),
+              let undoManager = textView.undoManager,
+              undoManager.canRedo else {
+            return false
+        }
+
+        undoManager.redo()
+        return true
+    }
+
+    private var canUndoInDocument: Bool {
+        guard viewModel.mode == .edit,
+              let textView = activeEditorTextView(),
+              let undoManager = textView.undoManager else {
+            return false
+        }
+
+        return undoManager.canUndo
+    }
+
+    private var canRedoInDocument: Bool {
+        guard viewModel.mode == .edit,
+              let textView = activeEditorTextView(),
+              let undoManager = textView.undoManager else {
+            return false
+        }
+
+        return undoManager.canRedo
+    }
+
+    private func activeEditorTextView() -> EditorTextView? {
+        guard let keyWindow = NSApp.keyWindow,
+              let contentView = keyWindow.contentView else {
+            return nil
+        }
+
+        return contentView.firstDescendant(ofType: EditorTextView.self)
     }
 
     private func activeRenderedWebView() -> WKWebView? {
