@@ -257,22 +257,26 @@ struct RenderedHTMLBuilder {
             --token-property: #8cb8ff;
           }
         }
-        body { margin: 0; font-family: 'SF Pro Text', 'Inter', 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); }
+        body { margin: 0; font-family: 'SF Pro Text', 'Inter', 'Helvetica Neue', sans-serif; font-size: 15px; line-height: 1.66; background: var(--bg); color: var(--text); }
         .document { max-width: 860px; margin: 32px auto; padding: 0 24px 64px; }
         .frontmatter { background: var(--surface); border: 1px solid var(--border); border-radius: 0; padding: 12px 16px; margin-bottom: 22px; }
-        .frontmatter h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+        .frontmatter h2 { margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
         table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 8px 10px; vertical-align: top; border-top: 1px solid var(--rule); font-size: 13px; }
+        th, td { text-align: left; padding: 8px 10px; vertical-align: top; border-top: 1px solid var(--rule); font-size: 12.5px; }
         th { width: 35%; color: var(--muted); font-weight: 600; }
-        .markdown { background: transparent; border: none; border-radius: 0; padding: 0; }
-        .markdown h1, .markdown h2, .markdown h3 { color: var(--heading); font-family: 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif; font-weight: 700; }
-        .markdown p, .markdown li { line-height: 1.65; }
+        .markdown { background: transparent; border: none; border-radius: 0; padding: 0; font-size: 15px; }
+        .markdown h1, .markdown h2, .markdown h3, .markdown h4 { color: var(--heading); font-family: 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif; font-weight: 700; line-height: 1.22; }
+        .markdown h1 { font-size: 2em; }
+        .markdown h2 { font-size: 1.65em; }
+        .markdown h3 { font-size: 1.35em; }
+        .markdown h4 { font-size: 1.15em; }
+        .markdown p, .markdown li { line-height: 1.68; }
         .markdown a { color: var(--link); }
         .markdown blockquote { border-left: 3px solid var(--quote); margin-left: 0; padding-left: 14px; color: var(--muted); }
         .markdown hr { border: none; border-top: 1px solid var(--rule); }
-        .markdown code { font-family: 'SF Mono', Menlo, Monaco, monospace; background: var(--inline-bg); color: var(--inline-text); padding: 2px 6px; border-radius: 6px; font-size: 0.9em; }
+        .markdown code { font-family: 'SF Mono', Menlo, Monaco, monospace; background: var(--inline-bg); color: var(--inline-text); padding: 2px 6px; border-radius: 6px; font-size: 0.92em; }
         .markdown pre { background: var(--code-bg); color: var(--code-text); padding: 14px; border-radius: 8px; overflow-x: auto; }
-        .markdown pre code { background: transparent; color: inherit; padding: 0; }
+        .markdown pre code { background: transparent; color: inherit; padding: 0; font-size: 0.92em; }
         .markdown pre code .hl-comment { color: var(--token-comment); }
         .markdown pre code .hl-keyword { color: var(--token-keyword); }
         .markdown pre code .hl-string { color: var(--token-string); }

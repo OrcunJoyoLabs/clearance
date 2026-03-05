@@ -35,7 +35,7 @@ struct CodeMirrorEditorView: NSViewRepresentable {
         textView.isAutomaticDataDetectionEnabled = false
         textView.smartInsertDeleteEnabled = false
         textView.usesAdaptiveColorMappingForDarkAppearance = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        textView.font = NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
         textView.delegate = context.coordinator
         textView.string = text
 
@@ -210,14 +210,14 @@ final class MarkdownSyntaxHighlighter {
 
     private var baseAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: NSFont.monospacedSystemFont(ofSize: 14, weight: .regular),
+            .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .regular),
             .foregroundColor: ClearancePalette.text
         ]
     }
 
     private var frontmatterAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: NSFont.monospacedSystemFont(ofSize: 13.5, weight: .regular),
+            .font: NSFont.monospacedSystemFont(ofSize: 14.5, weight: .regular),
             .foregroundColor: ClearancePalette.frontmatter
         ]
     }
@@ -243,19 +243,19 @@ final class MarkdownSyntaxHighlighter {
 
     private var strongAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: NSFont.monospacedSystemFont(ofSize: 14, weight: .semibold)
+            .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
         ]
     }
 
     private var emphasisAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: NSFontManager.shared.convert(NSFont.monospacedSystemFont(ofSize: 14, weight: .regular), toHaveTrait: .italicFontMask)
+            .font: NSFontManager.shared.convert(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular), toHaveTrait: .italicFontMask)
         ]
     }
 
     private var inlineCodeAttributes: [NSAttributedString.Key: Any] {
         [
-            .font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular),
+            .font: NSFont.monospacedSystemFont(ofSize: 14, weight: .regular),
             .foregroundColor: ClearancePalette.inlineCodeText,
             .backgroundColor: ClearancePalette.inlineCodeBackground
         ]
@@ -270,7 +270,7 @@ final class MarkdownSyntaxHighlighter {
     }
 
     private var codeFont: NSFont {
-        NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
     }
 
     private var codeCommentAttributes: [NSAttributedString.Key: Any] {
@@ -371,15 +371,15 @@ final class MarkdownSyntaxHighlighter {
         let size: CGFloat
         switch level {
         case 1:
-            size = 22
-        case 2:
             size = 20
-        case 3:
+        case 2:
             size = 18
+        case 3:
+            size = 16.5
         case 4:
-            size = 16
+            size = 15.5
         default:
-            size = 14
+            size = 15
         }
 
         return [
