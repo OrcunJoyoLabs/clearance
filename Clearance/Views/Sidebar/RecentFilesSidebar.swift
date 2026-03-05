@@ -4,7 +4,6 @@ import SwiftUI
 struct RecentFilesSidebar: View {
     let entries: [RecentFileEntry]
     @Binding var selectedPath: String?
-    @Binding var appearance: AppearancePreference
     let onOpenFile: () -> Void
     let onSelect: (RecentFileEntry) -> Void
     let onOpenInNewWindow: (RecentFileEntry) -> Void
@@ -51,26 +50,6 @@ struct RecentFilesSidebar: View {
             .animation(.snappy(duration: 0.26), value: entries.map { "\($0.path)|\($0.lastOpenedAt.timeIntervalSinceReferenceDate)" })
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Divider()
-            HStack(spacing: 8) {
-                Picker("Appearance", selection: $appearance) {
-                    ForEach(AppearancePreference.allCases) { choice in
-                        Image(systemName: choice.symbolName)
-                            .tag(choice)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .controlSize(.small)
-                .frame(width: 128)
-                .help("Appearance")
-
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-        }
     }
 
     private var groupedEntries: [RecentFilesSection] {

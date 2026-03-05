@@ -28,7 +28,6 @@ struct WorkspaceView: View {
             RecentFilesSidebar(
                 entries: viewModel.recentFilesStore.entries,
                 selectedPath: $viewModel.selectedRecentPath,
-                appearance: $appSettings.appearance,
                 onOpenFile: { openDocumentFromPicker() }
             ) { entry in
                 selectRecentEntry(entry)
