@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct RecentFilesSidebar: View {
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+
     let entries: [RecentFileEntry]
     @Binding var selectedPath: String?
     let onOpenFile: () -> Void
@@ -47,7 +49,10 @@ struct RecentFilesSidebar: View {
                 onSelect(entry)
             }
             .listStyle(.sidebar)
-            .animation(.snappy(duration: 0.26), value: entries.map { "\($0.path)|\($0.lastOpenedAt.timeIntervalSinceReferenceDate)" })
+            .animation(
+                accessibilityReduceMotion ? nil : .snappy(duration: 0.26),
+                value: entries.map { "\($0.path)|\($0.lastOpenedAt.timeIntervalSinceReferenceDate)" }
+            )
         }
     }
 
