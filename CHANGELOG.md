@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4 - March 6, 2026
+
+- Added rendered document text zoom controls with standard macOS `Actual Size`, `Zoom In`, and `Zoom Out` menu commands, while preserving scroll position as the rendered view resizes.
+- Refined rendered markdown typography and styling for a cleaner reading experience across built-in themes.
+- Added bundled in-app release notes, which now open automatically on first launch after an update and remain available later from the app menu.
+- Improved the recent history sidebar so entries can be removed directly and sidebar animations respect the system `Reduce Motion` setting.
+
 ## 1.0.3 - March 6, 2026
 
 - Added secure remote markdown opening, rendering, navigation, and history handling alongside local documents.
