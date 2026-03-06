@@ -117,22 +117,23 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
 
         isEditing = true
         let editingText = AddressBarFormatter.editingText(for: activeURL)
-        setFieldText(editingText)
+        applyEditingText(editingText, to: searchField)
 
-        if let cell = searchField.cell as? NSSearchFieldCell {
-            cell.lineBreakMode = .byClipping
-        }
+        DispatchQueue.main.async { [weak self, weak searchField] in
+            guard let self,
+                  let searchField,
+                  self.isEditing else {
+                return
+            }
 
-        if let editor = searchField.currentEditor() {
-            editor.string = editingText
-            editor.selectedRange = NSRange(location: 0, length: editor.string.utf16.count)
+            self.applyEditingText(editingText, to: searchField)
         }
     }
 
     private func commit(using searchField: NSSearchField) {
         committedViaReturn = true
         isEditing = false
-        onCommit(searchField.stringValue)
+        onCommit(commitText(for: searchField.stringValue))
         syncText()
     }
 
@@ -169,5 +170,27 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
         if let editor = item.searchField.currentEditor(), editor.string != value {
             editor.string = value
         }
+    }
+
+    private func applyEditingText(_ editingText: String, to searchField: NSSearchField) {
+        setFieldText(editingText)
+
+        if let cell = searchField.cell as? NSSearchFieldCell {
+            cell.lineBreakMode = .byClipping
+        }
+
+        if let editor = searchField.currentEditor() {
+            editor.string = editingText
+            editor.selectedRange = NSRange(location: 0, length: editor.string.utf16.count)
+        }
+    }
+
+    private func commitText(for currentValue: String) -> String {
+        guard activeURL != nil,
+              currentValue == AddressBarFormatter.displayText(for: activeURL) else {
+            return currentValue
+        }
+
+        return AddressBarFormatter.editingText(for: activeURL)
     }
 }

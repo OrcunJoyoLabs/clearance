@@ -14,4 +14,40 @@ final class AddressBarSearchToolbarControllerTests: XCTestCase {
 
         XCTAssertNil(cell.searchButtonCell)
     }
+
+    func testBeginEditingShowsFullPathForLocalFile() {
+        let controller = AddressBarSearchToolbarController()
+        let url = URL(fileURLWithPath: "/tmp/docs/SKILL.md")
+
+        controller.update(activeURL: url, isLoading: false) { _ in }
+        controller.controlTextDidBeginEditing(
+            Notification(name: NSControl.textDidBeginEditingNotification, object: controller.item.searchField)
+        )
+
+        XCTAssertEqual(controller.item.searchField.stringValue, "/tmp/docs/SKILL.md")
+    }
+
+    func testCommitUsesFullPathWhenFieldStillShowsDisplayTextForLocalFile() {
+        let controller = AddressBarSearchToolbarController()
+        let url = URL(fileURLWithPath: "/tmp/docs/SKILL.md")
+        var committedValue: String?
+
+        controller.update(activeURL: url, isLoading: false) { committedValue = $0 }
+        controller.item.searchField.stringValue = "SKILL.md"
+        controller.commitFromAction(controller.item.searchField)
+
+        XCTAssertEqual(committedValue, "/tmp/docs/SKILL.md")
+    }
+
+    func testCommitUsesFullURLWhenFieldStillShowsDisplayTextForRemoteURL() {
+        let controller = AddressBarSearchToolbarController()
+        let url = URL(string: "https://example.com/docs/guide.md")!
+        var committedValue: String?
+
+        controller.update(activeURL: url, isLoading: false) { committedValue = $0 }
+        controller.item.searchField.stringValue = "example.com/docs/guide.md"
+        controller.commitFromAction(controller.item.searchField)
+
+        XCTAssertEqual(committedValue, "https://example.com/docs/guide.md")
+    }
 }
