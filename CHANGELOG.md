@@ -1,5 +1,13 @@
 # Clearance Changelog
 
+## 1.1.0 - March 7, 2026
+
+- Added bundled Graphviz DOT rendering for fenced `dot` and `graphviz` blocks, and now scale diagrams and markdown images to fit the reading column instead of sliding under the outline.
+- Improved markdown rendering for structured guidance docs by treating embedded HTML/XML-like tags as literal text and correctly rendering fenced code blocks inside custom wrapper tags like `<Good>` and `<Bad>`.
+- Tightened remote document loading so only explicit `http://` and `https://` URLs open remotely, while remote fetches now reject HTML and other unsupported content types instead of rendering them as markdown.
+- Refined the address bar to behave more like a document field, including full-path editing for local files, safer URL parsing, and standard reopen behavior that reuses the existing window instead of opening duplicates.
+- Local files now auto-refresh when they change on disk in View mode, while Edit mode still protects in-progress work by prompting before replacing unsaved content.
+
 ## 1.0.4 - March 6, 2026
 
 - Added rendered document text zoom controls with standard macOS `Actual Size`, `Zoom In`, and `Zoom Out` menu commands, while preserving scroll position as the rendered view resizes.
