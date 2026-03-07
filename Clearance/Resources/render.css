@@ -162,6 +162,11 @@ th {
   margin: 2em 0;
 }
 
+.markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
 .markdown .mermaid {
   margin: 1.1rem 0;
   overflow-x: auto;

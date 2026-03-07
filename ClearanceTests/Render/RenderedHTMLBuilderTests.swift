@@ -56,6 +56,19 @@ final class RenderedHTMLBuilderTests: XCTestCase {
         XCTAssertTrue(html.contains("overflow-x: auto"))
     }
 
+    func testRenderedImagesScaleToDocumentWidth() {
+        let document = ParsedMarkdownDocument(
+            body: "![Diagram](https://example.com/diagram.png)",
+            flattenedFrontmatter: [:]
+        )
+
+        let html = RenderedHTMLBuilder().build(document: document)
+
+        XCTAssertTrue(html.contains(".markdown img"))
+        XCTAssertTrue(html.contains("max-width: 100%"))
+        XCTAssertTrue(html.contains("height: auto"))
+    }
+
     func testDarkAppearanceUsesSelectedThemeDarkPalette() {
         let document = ParsedMarkdownDocument(body: "# Heading", flattenedFrontmatter: [:])
 
