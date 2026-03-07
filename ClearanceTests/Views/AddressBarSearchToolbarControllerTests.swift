@@ -4,6 +4,12 @@ import XCTest
 
 @MainActor
 final class AddressBarSearchToolbarControllerTests: XCTestCase {
+    func testAddressFieldKeepsStandardSearchFieldCell() {
+        let controller = AddressBarSearchToolbarController()
+
+        XCTAssertTrue(type(of: controller.item.searchField.cell!) == NSSearchFieldCell.self)
+    }
+
     func testAddressFieldShowsDocumentGlyph() {
         let controller = AddressBarSearchToolbarController()
         let expectedImage = NSImage(

@@ -2,20 +2,11 @@ import AppKit
 import SwiftUI
 
 @MainActor
-private func makeAddressBarDocumentButtonCell() -> NSButtonCell? {
-    guard let image = NSImage(
+private func makeAddressBarDocumentImage() -> NSImage? {
+    NSImage(
         systemSymbolName: "doc.text",
         accessibilityDescription: "Document"
-    ) else {
-        return nil
-    }
-
-    let cell = NSButtonCell(imageCell: image)
-    cell.bezelStyle = .shadowlessSquare
-    cell.imageScaling = .scaleProportionallyDown
-    cell.highlightsBy = []
-    cell.isBordered = false
-    return cell
+    )
 }
 
 struct AddressBarView: View {
@@ -27,28 +18,6 @@ struct AddressBarView: View {
         Color.clear
             .frame(width: 1, height: AddressBarSearchToolbarController.toolbarHeight)
             .accessibilityHidden(true)
-    }
-}
-
-@MainActor
-private final class AddressBarSearchFieldCell: NSSearchFieldCell {
-    override init(textCell string: String) {
-        super.init(textCell: string)
-        installDocumentButton()
-    }
-
-    required init(coder: NSCoder) {
-        super.init(coder: coder)
-        installDocumentButton()
-    }
-
-    override func resetSearchButtonCell() {
-        super.resetSearchButtonCell()
-        installDocumentButton()
-    }
-
-    private func installDocumentButton() {
-        searchButtonCell = makeAddressBarDocumentButtonCell()
     }
 }
 
@@ -88,7 +57,6 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
         super.init()
 
         let searchField = AddressBarSearchField()
-        searchField.cell = AddressBarSearchFieldCell(textCell: "")
         searchField.delegate = self
         searchField.target = self
         searchField.action = #selector(commitFromAction(_:))
@@ -144,7 +112,14 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
         }
 
         cell.usesSingleLineMode = true
-        cell.searchButtonCell = makeDocumentButtonCell()
+        guard let buttonCell = cell.searchButtonCell,
+              let image = makeDocumentButtonImage() else {
+            return
+        }
+
+        buttonCell.image = image
+        buttonCell.alternateImage = image
+        buttonCell.imageScaling = .scaleProportionallyDown
     }
 
     func controlTextDidBeginEditing(_ obj: Notification) {
@@ -272,7 +247,7 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
         return AddressBarFormatter.editingText(for: activeURL)
     }
 
-    private func makeDocumentButtonCell() -> NSButtonCell? {
-        makeAddressBarDocumentButtonCell()
+    private func makeDocumentButtonImage() -> NSImage? {
+        makeAddressBarDocumentImage()
     }
 }

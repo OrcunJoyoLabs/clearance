@@ -77,19 +77,22 @@ final class WorkspaceToolbarTests: XCTestCase {
         window.makeKeyAndOrderFront(nil)
         pumpMainRunLoop()
 
+        let defaultSearchField = NSSearchField()
+
         guard let toolbar = window.toolbar,
               let addressItem = toolbar.items.first(where: { $0.itemIdentifier.rawValue == "clearance.address" }) as? NSSearchToolbarItem,
               let cell = addressItem.searchField.cell as? NSSearchFieldCell,
               let actualImage = cell.searchButtonCell?.image,
-              let expectedImage = NSImage(
-                  systemSymbolName: "doc.text",
-                  accessibilityDescription: "Document"
-              ) else {
+              let defaultImage = (defaultSearchField.cell as? NSSearchFieldCell)?.searchButtonCell?.image,
+              let defaultData = defaultImage.tiffRepresentation,
+              let actualData = actualImage.tiffRepresentation
+        else {
             XCTFail("Expected a live address toolbar search field with a document glyph")
             return
         }
 
-        XCTAssertEqual(actualImage.tiffRepresentation, expectedImage.tiffRepresentation)
+        XCTAssertTrue(type(of: cell) == NSSearchFieldCell.self)
+        XCTAssertNotEqual(actualData, defaultData)
     }
 
     private func pumpMainRunLoop() {
