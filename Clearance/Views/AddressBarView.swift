@@ -24,10 +24,50 @@ struct AddressBarView: View {
 @MainActor
 private final class AddressBarSearchField: NSSearchField {
     var onPrimaryInteraction: ((NSSearchField) -> Void)?
+    var activeFileURL: URL?
 
     override func mouseDown(with event: NSEvent) {
+        // If the mouse went down on the doc icon (the search button cell on the left),
+        // track subsequent events to distinguish a click from a drag. A drag initiates
+        // a file drag session so the user can drop the open document into Finder, Slack,
+        // or any other app that accepts files. A plain click falls through to the normal
+        // address-bar focus/edit behaviour.
+        if let fileURL = activeFileURL,
+           let cell = cell as? NSSearchFieldCell {
+            let buttonRect = cell.searchButtonRect(forBounds: bounds)
+            let location = convert(event.locationInWindow, from: nil)
+
+            if buttonRect.contains(location) {
+                while let next = NSApp.nextEvent(
+                    matching: [.leftMouseDragged, .leftMouseUp],
+                    until: .distantFuture,
+                    inMode: .eventTracking,
+                    dequeue: true
+                ) {
+                    if next.type == .leftMouseUp { break }
+                    let dragLoc = convert(next.locationInWindow, from: nil)
+                    if hypot(dragLoc.x - location.x, dragLoc.y - location.y) >= 4 {
+                        startFileDrag(for: fileURL, from: location, event: event)
+                        return
+                    }
+                }
+                // Not a drag — fall through to normal click handling
+            }
+        }
+
         onPrimaryInteraction?(self)
         super.mouseDown(with: event)
+    }
+
+    private func startFileDrag(for url: URL, from location: CGPoint, event: NSEvent) {
+        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 32, height: 32)
+        item.setDraggingFrame(
+            NSRect(x: location.x - 16, y: location.y - 16, width: 32, height: 32),
+            contents: icon
+        )
+        beginDraggingSession(with: [item], event: event, source: self)
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -37,6 +77,15 @@ private final class AddressBarSearchField: NSSearchField {
         }
 
         return didBecomeFirstResponder
+    }
+}
+
+extension AddressBarSearchField: NSDraggingSource {
+    func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        context == .outsideApplication ? .copy : []
     }
 }
 
@@ -83,6 +132,7 @@ final class AddressBarSearchToolbarController: NSObject, NSSearchFieldDelegate {
         let didChangeURL = self.activeURL != activeURL
         self.activeURL = activeURL
         self.onCommit = onCommit
+        (item.searchField as? AddressBarSearchField)?.activeFileURL = activeURL?.isFileURL == true ? activeURL : nil
         applyFieldAppearance(to: item.searchField)
 
         if didChangeURL {
