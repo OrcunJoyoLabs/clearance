@@ -1,5 +1,9 @@
 # Clearance Changelog
 
+## 1.2.1 - March 9, 2026
+
+- Fixed external file-open events so opening a markdown file into an already-running Clearance window reuses that window instead of spawning duplicates.
+
 ## 1.2.0 - March 9, 2026
 
 - Added native file dragging from the address bar document icon, so the open local file can be dropped directly into Finder, Slack, and other apps that accept file URLs.
