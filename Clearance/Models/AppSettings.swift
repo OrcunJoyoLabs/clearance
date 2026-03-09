@@ -197,6 +197,31 @@ struct ThemeVariant {
     let selectionText: String
 }
 
+enum SidebarGrouping: String, CaseIterable, Identifiable {
+    case byDate
+    case byFolder
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .byDate:
+            return "Date"
+        case .byFolder:
+            return "Folder"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .byDate:
+            return "calendar"
+        case .byFolder:
+            return "folder"
+        }
+    }
+}
+
 final class AppSettings: ObservableObject {
     @Published var defaultOpenMode: WorkspaceMode {
         didSet {
@@ -222,12 +247,19 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var sidebarGrouping: SidebarGrouping {
+        didSet {
+            userDefaults.set(sidebarGrouping.rawValue, forKey: sidebarGroupingStorageKey)
+        }
+    }
+
     private let userDefaults: UserDefaults
     private let openModeStorageKey: String
     private let themeStorageKey: String
     private let appearanceStorageKey: String
     private let renderedTextScaleStorageKey: String
     private let releaseNotesVersionStorageKey: String
+    private let sidebarGroupingStorageKey: String
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -235,7 +267,8 @@ final class AppSettings: ObservableObject {
         themeStorageKey: String = "theme",
         appearanceStorageKey: String = "appearance",
         renderedTextScaleStorageKey: String = "renderedTextScale",
-        releaseNotesVersionStorageKey: String = "releaseNotesVersion"
+        releaseNotesVersionStorageKey: String = "releaseNotesVersion",
+        sidebarGroupingStorageKey: String = "sidebarGrouping"
     ) {
         self.userDefaults = userDefaults
         self.openModeStorageKey = storageKey
@@ -243,6 +276,7 @@ final class AppSettings: ObservableObject {
         self.appearanceStorageKey = appearanceStorageKey
         self.renderedTextScaleStorageKey = renderedTextScaleStorageKey
         self.releaseNotesVersionStorageKey = releaseNotesVersionStorageKey
+        self.sidebarGroupingStorageKey = sidebarGroupingStorageKey
 
         if let stored = userDefaults.string(forKey: storageKey),
            let mode = WorkspaceMode(rawValue: stored) {
@@ -270,6 +304,13 @@ final class AppSettings: ObservableObject {
             renderedTextScale = storedTextScale
         } else {
             renderedTextScale = 1.0
+        }
+
+        if let storedGrouping = userDefaults.string(forKey: sidebarGroupingStorageKey),
+           let parsedGrouping = SidebarGrouping(rawValue: storedGrouping) {
+            sidebarGrouping = parsedGrouping
+        } else {
+            sidebarGrouping = .byDate
         }
     }
 

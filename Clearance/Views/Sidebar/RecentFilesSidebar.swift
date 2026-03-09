@@ -6,10 +6,13 @@ struct RecentFilesSidebar: View {
 
     let entries: [RecentFileEntry]
     @Binding var selectedPath: String?
+    @Binding var sidebarGrouping: SidebarGrouping
     let onOpenFile: () -> Void
     let onSelect: (RecentFileEntry) -> Void
     let onOpenInNewWindow: (RecentFileEntry) -> Void
     let onRemoveFromSidebar: (RecentFileEntry) -> Void
+
+    @State private var expandedSections: [String: Bool] = [:]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +23,16 @@ struct RecentFilesSidebar: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 Spacer()
+                Picker("", selection: $sidebarGrouping) {
+                    ForEach(SidebarGrouping.allCases) { grouping in
+                        Image(systemName: grouping.symbolName)
+                            .tag(grouping)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 72)
+                .controlSize(.small)
+                .help("Sidebar grouping")
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -28,9 +41,24 @@ struct RecentFilesSidebar: View {
 
             List(selection: $selectedPath) {
                 ForEach(groupedEntries) { section in
-                    Section(section.title) {
+                    Section(isExpanded: sectionBinding(for: section.id)) {
                         ForEach(section.entries) { entry in
-                            row(for: entry)
+                            row(for: entry, showDirectory: sidebarGrouping != .byFolder)
+                        }
+                    } header: {
+                        if let subtitle = section.subtitle {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(section.title)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
+                                Text(subtitle)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        } else {
+                            Text(section.title)
                         }
                     }
                 }
@@ -50,6 +78,7 @@ struct RecentFilesSidebar: View {
                 onSelect(entry)
             }
             .listStyle(.sidebar)
+            .padding(.top, 4)
             .animation(
                 accessibilityReduceMotion ? nil : .snappy(duration: 0.26),
                 value: entries.map { "\($0.path)|\($0.lastOpenedAt.timeIntervalSinceReferenceDate)" }
@@ -57,7 +86,29 @@ struct RecentFilesSidebar: View {
         }
     }
 
+    private func sectionBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { expandedSections[id] ?? true },
+            set: { newValue in
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) {
+                    expandedSections[id] = newValue
+                }
+            }
+        )
+    }
+
     private var groupedEntries: [RecentFilesSection] {
+        switch sidebarGrouping {
+        case .byDate:
+            return entriesGroupedByDate
+        case .byFolder:
+            return entriesGroupedByFolder
+        }
+    }
+
+    private var entriesGroupedByDate: [RecentFilesSection] {
         var buckets: [RecentFileBucket: [RecentFileEntry]] = [:]
         for entry in entries {
             buckets[RecentFileBucket.bucket(for: entry.lastOpenedAt), default: []].append(entry)
@@ -75,7 +126,46 @@ struct RecentFilesSidebar: View {
         }
     }
 
-    private func row(for entry: RecentFileEntry) -> some View {
+    private var entriesGroupedByFolder: [RecentFilesSection] {
+        var folderOrder: [String] = []
+        var folderEntries: [String: [RecentFileEntry]] = [:]
+
+        for entry in entries {
+            let folder: String
+            if entry.fileURL.isFileURL {
+                folder = ProjectRootResolver.projectRoot(for: entry.path) ?? entry.directoryPath
+            } else {
+                folder = entry.directoryPath
+            }
+            if folderEntries[folder] == nil {
+                folderOrder.append(folder)
+            }
+            folderEntries[folder, default: []].append(entry)
+        }
+
+        return folderOrder.compactMap { folder in
+            guard let sectionEntries = folderEntries[folder], !sectionEntries.isEmpty else {
+                return nil
+            }
+
+            let displayName: String
+            if let url = URL(string: folder), url.scheme != nil, !url.isFileURL {
+                displayName = folder
+            } else {
+                let components = folder.split(separator: "/")
+                displayName = components.last.map(String.init) ?? folder
+            }
+
+            return RecentFilesSection(
+                id: folder,
+                title: displayName,
+                subtitle: folder,
+                entries: sectionEntries
+            )
+        }
+    }
+
+    private func row(for entry: RecentFileEntry, showDirectory: Bool = true) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: entry.fileURL.isFileURL ? "doc.text" : "globe")
                 .font(.caption)
@@ -86,11 +176,13 @@ struct RecentFilesSidebar: View {
                 Text(entry.displayName)
                     .font(.body)
                     .lineLimit(1)
-                Text(entry.directoryPath)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if showDirectory {
+                    Text(entry.directoryPath)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -149,11 +241,24 @@ struct RecentFilesSidebar: View {
 }
 
 private struct RecentFilesSection: Identifiable {
-    let bucket: RecentFileBucket
+    let id: String
+    let title: String
+    let subtitle: String?
     let entries: [RecentFileEntry]
 
-    var id: String { bucket.rawValue }
-    var title: String { bucket.rawValue }
+    init(bucket: RecentFileBucket, entries: [RecentFileEntry]) {
+        self.id = bucket.rawValue
+        self.title = bucket.rawValue
+        self.subtitle = nil
+        self.entries = entries
+    }
+
+    init(id: String, title: String, subtitle: String?, entries: [RecentFileEntry]) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.entries = entries
+    }
 }
 
 private enum RecentFileBucket: String, CaseIterable {

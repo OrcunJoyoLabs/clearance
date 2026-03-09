@@ -36,6 +36,7 @@ struct WorkspaceView: View {
             RecentFilesSidebar(
                 entries: viewModel.recentFilesStore.entries,
                 selectedPath: $viewModel.selectedRecentPath,
+                sidebarGrouping: $appSettings.sidebarGrouping,
                 onOpenFile: { openDocumentFromPicker() }
             ) { entry in
                 selectRecentEntry(entry)

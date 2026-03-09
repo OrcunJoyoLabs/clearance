@@ -134,6 +134,40 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertNil(second.releaseNotesVersionToPresent(currentVersion: "1.0.3"))
     }
 
+    func testDefaultSidebarGroupingIsByDate() {
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = AppSettings(
+            userDefaults: defaults,
+            storageKey: "defaultMode",
+            sidebarGroupingStorageKey: "sidebarGrouping"
+        )
+
+        XCTAssertEqual(settings.sidebarGrouping, .byDate)
+    }
+
+    func testPersistedSidebarGroupingRestoresAfterReload() {
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let first = AppSettings(
+            userDefaults: defaults,
+            storageKey: "defaultMode",
+            sidebarGroupingStorageKey: "sidebarGrouping"
+        )
+        first.sidebarGrouping = .byFolder
+
+        let second = AppSettings(
+            userDefaults: defaults,
+            storageKey: "defaultMode",
+            sidebarGroupingStorageKey: "sidebarGrouping"
+        )
+        XCTAssertEqual(second.sidebarGrouping, .byFolder)
+    }
+
     func testUpdatedVersionPresentsReleaseNotesOnce() {
         let suite = UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
