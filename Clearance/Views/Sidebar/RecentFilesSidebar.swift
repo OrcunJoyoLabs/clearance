@@ -189,12 +189,14 @@ struct RecentFilesSidebar: View {
             var items: [SidebarItem] = []
             var seenPaths: Set<String> = []
 
-            // Add manually-opened files under this watched folder
+            // Add manually-opened files under this watched folder (only if file still exists)
             for entry in entries where entry.fileURL.isFileURL {
                 if entry.path.hasPrefix(folder.path + "/") {
-                    items.append(.recentEntry(entry))
-                    seenPaths.insert(entry.path)
                     claimedPaths.insert(entry.path)
+                    if FileManager.default.fileExists(atPath: entry.path) {
+                        items.append(.recentEntry(entry))
+                        seenPaths.insert(entry.path)
+                    }
                 }
             }
 
