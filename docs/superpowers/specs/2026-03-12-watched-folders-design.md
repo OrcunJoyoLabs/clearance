@@ -17,16 +17,39 @@ Persisted in UserDefaults as JSON. Manages the list of watched directory paths.
 ```swift
 struct WatchedFolderEntry: Codable, Identifiable {
     let path: String          // Absolute path to watched directory
+    let bookmarkData: Data    // Security-scoped bookmark for persistent access
     let addedAt: Date         // When the folder was registered
     var id: String { path }
 }
 ```
 
+**Security-scoped bookmarks**: When a folder is selected via `NSOpenPanel`, persist a security-scoped bookmark (`URL.bookmarkData(options: .withSecurityScope)`). On restore, resolve the bookmark and call `url.startAccessingSecurityScopedResource()` before scanning. Call `url.stopAccessingSecurityScopedResource()` when done. This ensures access survives app restarts.
+
 Stored separately from `RecentFilesStore`. The watched folder store only tracks *which directories* are watched — it does not store the scan results. Scan results are computed on demand.
+
+### Sidebar item type
+
+Introduce a `SidebarItem` enum to represent both manually-opened and scan-discovered files:
+
+```swift
+enum SidebarItem: Identifiable {
+    case recentEntry(RecentFileEntry)
+    case scannedFile(url: URL, modificationDate: Date)
+
+    var id: String { /* path-based */ }
+    var displayName: String { /* filename */ }
+    var path: String { /* full path */ }
+    var sortDate: Date { /* lastOpenedAt or modificationDate */ }
+}
+```
+
+This allows the sidebar to distinguish the two sources and display them appropriately.
 
 ### No changes to `RecentFilesStore`
 
 Files that the user explicitly opens continue to be tracked in `RecentFilesStore` as before. Manually opened files persist in recent history regardless of their modification date.
+
+The `add(urls:)` bulk import method on `RecentFilesStore` becomes dead code with the removal of the one-shot import flow and should be removed.
 
 ## Directory Scanning
 
@@ -52,7 +75,7 @@ When the enumerator encounters any of these directory names, call `skipDescendan
 - `.next`
 - `.nuxt`
 
-Hidden directories are already skipped via `.skipsHiddenFiles`.
+Hidden directories are already skipped via `.skipsHiddenFiles`. This means directories like `.github` are also skipped — this is an accepted limitation.
 
 ### Early date filter
 
@@ -66,11 +89,21 @@ Claude can create markdown files anywhere in a project tree (e.g., `docs/superpo
 
 Results sorted by modification date (newest first), then alphabetically for ties.
 
+### Unavailable directories
+
+If a watched directory no longer exists on disk (deleted, renamed, external drive unmounted), skip the scan. Show the section header dimmed with no files listed. The "Stop Watching Folder" context menu remains available for cleanup.
+
 ## Sidebar Integration
 
 ### Where it appears
 
 In the existing "Group by Folder" sidebar view (`entriesGroupedByFolder` in `RecentFilesSidebar`).
+
+### Watched folders take priority over ProjectRootResolver
+
+When building the folder-grouped sidebar, watched folders are processed first. Any `RecentFileEntry` whose path falls under a watched folder directory is **claimed** by that watched folder's section and excluded from the `ProjectRootResolver`-based grouping. This prevents files from appearing in two sections.
+
+When a file falls under multiple watched folders (e.g., `/projects` and `/projects/myapp`), it is assigned to the **deepest** (most-specific) matching watched folder.
 
 ### Section composition
 
@@ -93,6 +126,10 @@ Each watched folder section shows:
 - Files that were manually opened show the same row style as today
 - Files discovered only by scan (not yet opened) use the file's **modification date** as the displayed date, since there is no "last opened" date
 
+### Group by Date view
+
+Scan-only files (never opened) do **not** appear in the "Group by Date" sidebar view. They have no `lastOpenedAt` and were never explicitly opened. Only files tracked in `RecentFilesStore` appear in date-grouped mode.
+
 ### Non-watched folder groups
 
 Entries in `RecentFilesStore` that are *not* under any watched folder continue to appear grouped by their project root (existing behavior). The "Other" section also remains unchanged.
@@ -102,7 +139,7 @@ Entries in `RecentFilesStore` that are *not* under any watched folder continue t
 ### Opening a folder
 
 1. User selects a directory via Open panel (or drag-and-drop)
-2. Directory is registered in `WatchedFolderStore`
+2. Security-scoped bookmark is created and directory is registered in `WatchedFolderStore`
 3. Initial scan runs immediately
 4. The most recently modified file from the scan is opened
 5. Sidebar (in folder-grouped mode) shows the watched folder section with scanned files
@@ -125,8 +162,8 @@ Context menu on the section header provides "Stop Watching Folder" action. This 
 
 ## Persistence
 
-- `WatchedFolderStore` persists across app launches (UserDefaults)
-- On app launch, watched folders are restored but **not automatically scanned** — the user triggers refresh manually
+- `WatchedFolderStore` persists across app launches (UserDefaults, with security-scoped bookmarks)
+- On app launch, watched folders are restored and **automatically scanned** — the scan is fast with the 7-day filter and junk-directory pruning
 - `RecentFilesStore` continues to persist independently
 
 ## What Gets Removed
@@ -138,6 +175,7 @@ The following one-shot folder import code is replaced:
 - `PendingFolderImport` model and the confirmation dialog
 - `folderImportConfirmationThreshold` constant
 - The confirmation alert in `WorkspaceView`
+- `add(urls:)` on `RecentFilesStore` (dead code after removal of bulk import)
 
 The existing `folderImportURLs(in:)` static method is evolved into the new scan function with the 7-day filter and junk-directory skipping.
 
@@ -149,8 +187,10 @@ The existing `folderImportURLs(in:)` static method is evolved into the new scan 
 
 ## Testing
 
-- `WatchedFolderStore`: add/remove/persist/restore
-- Scan function: finds recent files, skips old files, skips junk directories, handles empty directories
-- Sidebar merging: scan-only files, manually-opened files, deduplication, non-watched groups unaffected
+- `WatchedFolderStore`: add/remove/persist/restore, security-scoped bookmark round-trip
+- Scan function: finds recent files, skips old files, skips junk directories, handles empty directories, handles missing directories
+- Sidebar merging: scan-only files, manually-opened files, deduplication, watched folder priority over ProjectRootResolver, deepest-match for overlapping watches, non-watched groups unaffected
+- Sidebar item type: correct display for both scanned and manually-opened files
+- Group by Date: scan-only files excluded
 - Refresh: re-scan updates the section correctly
 - Removing a watched folder: section disappears, manually-opened files remain in history
