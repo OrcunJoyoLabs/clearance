@@ -360,6 +360,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>A1B2C3D4E5F6789012345678</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>SidebarItem.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>26DB01E6A857AB360BD2A10B</key>
 		<dict>
 			<key>isa</key>
@@ -1647,6 +1658,13 @@
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
+		<key>B2C3D4E5F6789012345678A1</key>
+		<dict>
+			<key>fileRef</key>
+			<string>A1B2C3D4E5F6789012345678</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>A8B28FB131745D2839D55D9C</key>
 		<dict>
 			<key>isa</key>
@@ -1785,6 +1803,7 @@
 				<string>A865985151D7A37CA5BDB129</string>
 				<string>D1E2C3B4A5967857F6A5E4D3</string>
 				<string>E1F2D3C4B5A6968768F7E6D5</string>
+				<string>B2C3D4E5F6789012345678A1</string>
 				<string>7C128133F43D9FE27290852E</string>
 				<string>07CD5CDBAB873710D8B9EF7A</string>
 				<string>083028818E106C3DA10F0BCB</string>
@@ -2496,6 +2515,7 @@
 				<string>41316671B9239418D2FEFB25</string>
 				<string>C1B2A3949586746F5E4D3C2B</string>
 				<string>D1C2B3A4958677589768F7E6</string>
+				<string>A1B2C3D4E5F6789012345678</string>
 			</array>
 			<key>isa</key>
 			<string>PBXGroup</string>

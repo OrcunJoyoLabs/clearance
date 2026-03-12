@@ -37,14 +37,20 @@ struct WorkspaceView: View {
                 entries: viewModel.recentFilesStore.entries,
                 selectedPath: $viewModel.selectedRecentPath,
                 sidebarGrouping: $appSettings.sidebarGrouping,
+                watchedFolders: viewModel.watchedFolderStore.entries,
+                scannedFiles: viewModel.scannedFiles,
                 onOpenFile: { openDocumentFromPicker() },
                 onDropURL: { handleSidebarDrop($0) }
-            ) { entry in
-                selectRecentEntry(entry)
-            } onOpenInNewWindow: { entry in
-                popOut(entry: entry)
-            } onRemoveFromSidebar: { entry in
-                removeRecentEntry(entry)
+            ) { item in
+                selectSidebarItem(item)
+            } onOpenInNewWindow: { item in
+                popOutSidebarItem(item)
+            } onRemoveFromSidebar: { item in
+                removeSidebarItem(item)
+            } onRefreshWatchedFolder: { path in
+                viewModel.refreshWatchedFolder(path: path)
+            } onRemoveWatchedFolder: { path in
+                viewModel.removeWatchedFolder(path: path)
             }
         } detail: {
             Group {
@@ -345,6 +351,39 @@ struct WorkspaceView: View {
 
     private func removeRecentEntry(_ entry: RecentFileEntry) {
         viewModel.removeRecentEntry(path: entry.path)
+    }
+
+    private func selectSidebarItem(_ item: SidebarItem) {
+        switch item {
+        case .recentEntry(let entry):
+            selectRecentEntry(entry)
+        case .scannedFile(let url, _):
+            _ = openDocument(url)
+        }
+    }
+
+    private func popOutSidebarItem(_ item: SidebarItem) {
+        switch item {
+        case .recentEntry(let entry):
+            popOut(entry: entry)
+        case .scannedFile(let url, _):
+            if let session = popOutSession(for: url) {
+                popoutWindowController.openWindow(
+                    for: session,
+                    mode: viewModel.mode,
+                    appSettings: appSettings
+                )
+            }
+        }
+    }
+
+    private func removeSidebarItem(_ item: SidebarItem) {
+        switch item {
+        case .recentEntry(let entry):
+            removeRecentEntry(entry)
+        case .scannedFile:
+            break
+        }
     }
 
     private func popOutDraggedURL(_ url: URL) -> Bool {
