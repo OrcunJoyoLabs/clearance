@@ -268,6 +268,12 @@ struct RecentFilesSidebar: View {
             }
         }
 
+        sections.sort { a, b in
+            let aMax = a.entries.first?.sortDate ?? .distantPast
+            let bMax = b.entries.first?.sortDate ?? .distantPast
+            return aMax > bMax
+        }
+
         return sections
     }
 
