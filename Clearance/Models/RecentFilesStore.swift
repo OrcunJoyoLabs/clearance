@@ -32,6 +32,27 @@ final class RecentFilesStore: ObservableObject {
         persist()
     }
 
+    func add(urls: [URL]) {
+        guard !urls.isEmpty else {
+            return
+        }
+
+        let now = Date.now
+        let storageKeys = urls.map(RecentFileEntry.storageKey(for:))
+        let newPaths = Set(storageKeys)
+        entries.removeAll { newPaths.contains($0.path) }
+        entries.insert(
+            contentsOf: storageKeys.map { RecentFileEntry(path: $0, lastOpenedAt: now) },
+            at: 0
+        )
+
+        if entries.count > maxEntries {
+            entries = Array(entries.prefix(maxEntries))
+        }
+
+        persist()
+    }
+
     func remove(path: String) {
         let priorCount = entries.count
         entries.removeAll { $0.path == path }

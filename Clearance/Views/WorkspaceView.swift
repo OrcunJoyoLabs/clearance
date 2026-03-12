@@ -37,7 +37,8 @@ struct WorkspaceView: View {
                 entries: viewModel.recentFilesStore.entries,
                 selectedPath: $viewModel.selectedRecentPath,
                 sidebarGrouping: $appSettings.sidebarGrouping,
-                onOpenFile: { openDocumentFromPicker() }
+                onOpenFile: { openDocumentFromPicker() },
+                onDropURL: { handleSidebarDrop($0) }
             ) { entry in
                 selectRecentEntry(entry)
             } onOpenInNewWindow: { entry in
@@ -94,7 +95,7 @@ struct WorkspaceView: View {
                 } else {
                     ContentUnavailableView {
                         Label {
-                            Text("Open a Markdown File")
+                            Text("Open a Markdown File or Folder")
                         } icon: {
                             Group {
                                 if let appIcon = NSApp.applicationIconImage {
@@ -109,9 +110,9 @@ struct WorkspaceView: View {
                             }
                         }
                     } description: {
-                        Text("Choose a file from the sidebar, or open one directly.")
+                        Text("Choose an item from History, or open one directly.")
                     } actions: {
-                        Button("Open Markdown…") {
+                        Button("Open…") {
                             openDocumentFromPicker()
                         }
                     }
@@ -262,6 +263,26 @@ struct WorkspaceView: View {
         }, message: {
             Text(viewModel.errorMessage ?? "")
         })
+        .alert(
+            "Add \(viewModel.pendingFolderImport?.urls.count ?? 0) Files To History?",
+            isPresented: Binding(
+                get: { viewModel.pendingFolderImport != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.cancelPendingFolderImport()
+                    }
+                }
+            )
+        ) {
+            Button("Add Files") {
+                _ = viewModel.confirmPendingFolderImport()
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelPendingFolderImport()
+            }
+        } message: {
+            Text("This folder contains more than 10 supported files.")
+        }
     }
 
     private func popOutActiveSession() {
@@ -281,9 +302,22 @@ struct WorkspaceView: View {
         viewModel.promptAndOpenFile()
     }
 
+    private func handleSidebarDrop(_ url: URL) -> Bool {
+        if let values = try? url.resourceValues(forKeys: [.isDirectoryKey]), values.isDirectory == true {
+            _ = viewModel.openPickedItem(url)
+            return true
+        }
+
+        return openDocument(url) != nil
+    }
+
     @discardableResult
     private func openDocument(_ url: URL, recordNavigation: Bool = true) -> DocumentSession? {
-        viewModel.open(url: url, recordNavigation: recordNavigation)
+        if recordNavigation {
+            return viewModel.openPickedItem(url)
+        }
+
+        return viewModel.open(url: url, recordNavigation: false)
     }
 
     private func openDocumentFromAddressBar(_ rawInput: String) {

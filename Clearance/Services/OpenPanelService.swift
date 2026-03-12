@@ -11,7 +11,7 @@ struct OpenPanelService: OpenPanelServicing {
     func chooseMarkdownFile() -> URL? {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
         let markdownType = UTType(filenameExtension: "md") ?? .plainText
         panel.allowedContentTypes = [markdownType, .plainText]
         panel.prompt = "Open"

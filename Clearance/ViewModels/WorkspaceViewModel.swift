@@ -1,6 +1,10 @@
 import Combine
 import Foundation
 
+struct PendingFolderImport {
+    let urls: [URL]
+}
+
 @MainActor
 final class WorkspaceViewModel: NSObject, ObservableObject {
     @Published var activeSession: DocumentSession? {
@@ -17,6 +21,7 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
     @Published private(set) var externalChangeDocumentName: String?
     @Published private(set) var canNavigateBack = false
     @Published private(set) var canNavigateForward = false
+    @Published private(set) var pendingFolderImport: PendingFolderImport?
 
     let recentFilesStore: RecentFilesStore
     var hasActiveDocument: Bool {
@@ -45,6 +50,7 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
     private var remoteLoadGeneration = 0
     private var navigationHistory: [URL] = []
     private var navigationHistoryIndex = -1
+    private let folderImportConfirmationThreshold = 10
 
     init(
         recentFilesStore: RecentFilesStore = RecentFilesStore(),
@@ -73,7 +79,30 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
             return nil
         }
 
+        return openPickedItem(url)
+    }
+
+    @discardableResult
+    func openPickedItem(_ url: URL) -> DocumentSession? {
+        if isDirectory(url) {
+            return queueOrImportFolder(at: url)
+        }
+
         return open(url: url)
+    }
+
+    @discardableResult
+    func confirmPendingFolderImport() -> DocumentSession? {
+        guard let pendingFolderImport else {
+            return nil
+        }
+
+        self.pendingFolderImport = nil
+        return importFolderURLs(pendingFolderImport.urls)
+    }
+
+    func cancelPendingFolderImport() {
+        pendingFolderImport = nil
     }
 
     @discardableResult
@@ -295,6 +324,76 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
         timer.tolerance = 0.3
         externalChangeTimer = timer
         RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func queueOrImportFolder(at folderURL: URL) -> DocumentSession? {
+        let urls = Self.folderImportURLs(in: folderURL)
+        guard !urls.isEmpty else {
+            return nil
+        }
+
+        if urls.count > folderImportConfirmationThreshold {
+            pendingFolderImport = PendingFolderImport(urls: urls)
+            return nil
+        }
+
+        return importFolderURLs(urls)
+    }
+
+    private func importFolderURLs(_ urls: [URL]) -> DocumentSession? {
+        guard let firstURL = urls.first else {
+            return nil
+        }
+
+        recentFilesStore.add(urls: urls)
+        return open(url: firstURL)
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        guard url.isFileURL else {
+            return false
+        }
+
+        return (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+    }
+
+    private static func folderImportURLs(in folderURL: URL) -> [URL] {
+        let supportedExtensions: Set<String> = ["md", "markdown", "txt"]
+        var urlsWithDates: [(url: URL, modificationDate: Date)] = []
+
+        guard let enumerator = FileManager.default.enumerator(
+            at: folderURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        for case let url as URL in enumerator {
+            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey]) else {
+                continue
+            }
+
+            if values.isDirectory == true {
+                continue
+            }
+
+            guard supportedExtensions.contains(url.pathExtension.lowercased()) else {
+                continue
+            }
+
+            urlsWithDates.append((url, values.contentModificationDate ?? .distantPast))
+        }
+
+        return urlsWithDates
+            .sorted {
+                if $0.modificationDate == $1.modificationDate {
+                    return $0.url.path < $1.url.path
+                }
+
+                return $0.modificationDate > $1.modificationDate
+            }
+            .map(\.url)
     }
 
     private func updateWindowTitle(for session: DocumentSession) {

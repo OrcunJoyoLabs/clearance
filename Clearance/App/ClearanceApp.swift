@@ -19,6 +19,7 @@ struct ClearanceApp: App {
             .onAppear {
                 showUpdatedReleaseNotesIfNeeded()
             }
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         }
         .windowToolbarStyle(.unified)
         .commands {
@@ -174,7 +175,7 @@ private struct ClearanceCommands: Commands {
         }
 
         CommandGroup(replacing: .newItem) {
-            Button("Open Markdown…") {
+            Button("Open…") {
                 actions?.openFile()
             }
             .keyboardShortcut("o")

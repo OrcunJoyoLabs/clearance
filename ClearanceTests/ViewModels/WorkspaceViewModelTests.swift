@@ -273,6 +273,70 @@ final class WorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(store.entries.isEmpty)
     }
 
+    func testOpeningFolderImportsFilesImmediatelyWhenCountIsTenOrLess() throws {
+        let folderURL = try makeTempFolderWithFiles(["old.md", "new.md"])
+        try setModificationDate(Date(timeIntervalSinceReferenceDate: 10), for: folderURL.appendingPathComponent("old.md"))
+        try setModificationDate(Date(timeIntervalSinceReferenceDate: 20), for: folderURL.appendingPathComponent("new.md"))
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let viewModel = WorkspaceViewModel(
+            recentFilesStore: store,
+            openPanelService: MockOpenPanelService(openItemURL: folderURL)
+        )
+
+        let session = viewModel.promptAndOpenFile()
+
+        XCTAssertEqual(session?.url.lastPathComponent, "new.md")
+        XCTAssertNil(viewModel.pendingFolderImport)
+        XCTAssertEqual(store.entries.map(\.path), [
+            folderURL.appendingPathComponent("new.md").path,
+            folderURL.appendingPathComponent("old.md").path
+        ])
+    }
+
+    func testOpeningFolderQueuesConfirmationWhenCountExceedsTen() throws {
+        let fileNames = (1...11).map { "file-\($0).md" }
+        let folderURL = try makeTempFolderWithFiles(fileNames)
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let viewModel = WorkspaceViewModel(
+            recentFilesStore: store,
+            openPanelService: MockOpenPanelService(openItemURL: folderURL)
+        )
+
+        let session = viewModel.promptAndOpenFile()
+
+        XCTAssertNil(session)
+        XCTAssertEqual(viewModel.pendingFolderImport?.urls.count, 11)
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertNil(viewModel.activeSession)
+    }
+
+    func testConfirmingPendingFolderImportAddsNewestFilesToTopOfHistory() throws {
+        let fileNames = (1...11).map { "file-\($0).md" }
+        let folderURL = try makeTempFolderWithFiles(fileNames)
+        for (index, fileName) in fileNames.enumerated() {
+            try setModificationDate(
+                Date(timeIntervalSinceReferenceDate: TimeInterval(index)),
+                for: folderURL.appendingPathComponent(fileName)
+            )
+        }
+        let newestURL = folderURL.appendingPathComponent("file-11.md")
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let viewModel = WorkspaceViewModel(
+            recentFilesStore: store,
+            openPanelService: MockOpenPanelService(openItemURL: folderURL)
+        )
+
+        _ = viewModel.promptAndOpenFile()
+        let session = viewModel.confirmPendingFolderImport()
+
+        XCTAssertEqual(session?.url.path, newestURL.path)
+        XCTAssertEqual(store.entries.first?.path, newestURL.path)
+        XCTAssertNil(viewModel.pendingFolderImport)
+    }
+
     private func makeTempMarkdown(contents: String) throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -280,5 +344,36 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = directory.appendingPathComponent("sample.md")
         try contents.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
+    }
+
+    private func makeTempFolderWithFiles(_ fileNames: [String]) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for fileName in fileNames {
+            try "# \(fileName)".write(
+                to: directory.appendingPathComponent(fileName),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        return directory
+    }
+
+    private func setModificationDate(_ date: Date, for url: URL) throws {
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
+    }
+}
+
+@MainActor
+private final class MockOpenPanelService: OpenPanelServicing {
+    let openItemURL: URL?
+
+    init(openItemURL: URL?) {
+        self.openItemURL = openItemURL
+    }
+
+    func chooseMarkdownFile() -> URL? {
+        openItemURL
     }
 }
