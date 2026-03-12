@@ -1,10 +1,6 @@
 import Combine
 import Foundation
 
-struct PendingFolderImport {
-    let urls: [URL]
-}
-
 @MainActor
 final class WorkspaceViewModel: NSObject, ObservableObject {
     @Published var activeSession: DocumentSession? {
@@ -21,9 +17,10 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
     @Published private(set) var externalChangeDocumentName: String?
     @Published private(set) var canNavigateBack = false
     @Published private(set) var canNavigateForward = false
-    @Published private(set) var pendingFolderImport: PendingFolderImport?
+    @Published var scannedFiles: [String: [ScannedFile]] = [:]
 
     let recentFilesStore: RecentFilesStore
+    let watchedFolderStore: WatchedFolderStore
     var hasActiveDocument: Bool {
         activeSession != nil || activeRemoteDocument != nil
     }
@@ -50,10 +47,10 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
     private var remoteLoadGeneration = 0
     private var navigationHistory: [URL] = []
     private var navigationHistoryIndex = -1
-    private let folderImportConfirmationThreshold = 10
 
     init(
         recentFilesStore: RecentFilesStore = RecentFilesStore(),
+        watchedFolderStore: WatchedFolderStore = WatchedFolderStore(),
         openPanelService: OpenPanelServicing = OpenPanelService(),
         appSettings: AppSettings = AppSettings(),
         remoteDocumentLoader: @escaping @Sendable (URL) async throws -> RemoteDocument = { requestedURL in
@@ -61,12 +58,14 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
         }
     ) {
         self.recentFilesStore = recentFilesStore
+        self.watchedFolderStore = watchedFolderStore
         self.openPanelService = openPanelService
         self.appSettings = appSettings
         self.remoteDocumentLoader = remoteDocumentLoader
         mode = appSettings.defaultOpenMode
         windowTitle = "Clearance"
         super.init()
+        refreshAllWatchedFolders()
     }
 
     deinit {
@@ -85,24 +84,10 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
     @discardableResult
     func openPickedItem(_ url: URL) -> DocumentSession? {
         if isDirectory(url) {
-            return queueOrImportFolder(at: url)
+            return addWatchedFolder(url: url)
         }
 
         return open(url: url)
-    }
-
-    @discardableResult
-    func confirmPendingFolderImport() -> DocumentSession? {
-        guard let pendingFolderImport else {
-            return nil
-        }
-
-        self.pendingFolderImport = nil
-        return importFolderURLs(pendingFolderImport.urls)
-    }
-
-    func cancelPendingFolderImport() {
-        pendingFolderImport = nil
     }
 
     @discardableResult
@@ -326,27 +311,43 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
     }
 
-    private func queueOrImportFolder(at folderURL: URL) -> DocumentSession? {
-        let urls = Self.folderImportURLs(in: folderURL)
-        guard !urls.isEmpty else {
+    private func addWatchedFolder(url: URL) -> DocumentSession? {
+        guard let entry = WatchedFolderEntry.create(from: url) else {
+            errorMessage = "Could not bookmark folder: \(url.path)"
             return nil
         }
-
-        if urls.count > folderImportConfirmationThreshold {
-            pendingFolderImport = PendingFolderImport(urls: urls)
+        watchedFolderStore.add(entry)
+        refreshWatchedFolder(path: entry.path)
+        guard let newest = scannedFiles[entry.path]?.first else {
             return nil
         }
-
-        return importFolderURLs(urls)
+        return open(url: newest.url)
     }
 
-    private func importFolderURLs(_ urls: [URL]) -> DocumentSession? {
-        guard let firstURL = urls.first else {
-            return nil
+    func refreshWatchedFolder(path: String) {
+        guard let entry = watchedFolderStore.entries.first(where: { $0.path == path }) else {
+            return
         }
+        let folderURL: URL
+        if let resolved = entry.resolveBookmark() {
+            folderURL = resolved
+        } else {
+            folderURL = URL(fileURLWithPath: entry.path)
+        }
+        let accessed = folderURL.startAccessingSecurityScopedResource()
+        defer { if accessed { folderURL.stopAccessingSecurityScopedResource() } }
+        scannedFiles[path] = WatchedFolderScanner.scan(directory: folderURL)
+    }
 
-        recentFilesStore.add(urls: urls)
-        return open(url: firstURL)
+    func refreshAllWatchedFolders() {
+        for entry in watchedFolderStore.entries {
+            refreshWatchedFolder(path: entry.path)
+        }
+    }
+
+    func removeWatchedFolder(path: String) {
+        watchedFolderStore.remove(path: path)
+        scannedFiles.removeValue(forKey: path)
     }
 
     private func isDirectory(_ url: URL) -> Bool {
@@ -355,45 +356,6 @@ final class WorkspaceViewModel: NSObject, ObservableObject {
         }
 
         return (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-    }
-
-    private static func folderImportURLs(in folderURL: URL) -> [URL] {
-        let supportedExtensions: Set<String> = ["md", "markdown", "txt"]
-        var urlsWithDates: [(url: URL, modificationDate: Date)] = []
-
-        guard let enumerator = FileManager.default.enumerator(
-            at: folderURL,
-            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
-        for case let url as URL in enumerator {
-            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey]) else {
-                continue
-            }
-
-            if values.isDirectory == true {
-                continue
-            }
-
-            guard supportedExtensions.contains(url.pathExtension.lowercased()) else {
-                continue
-            }
-
-            urlsWithDates.append((url, values.contentModificationDate ?? .distantPast))
-        }
-
-        return urlsWithDates
-            .sorted {
-                if $0.modificationDate == $1.modificationDate {
-                    return $0.url.path < $1.url.path
-                }
-
-                return $0.modificationDate > $1.modificationDate
-            }
-            .map(\.url)
     }
 
     private func updateWindowTitle(for session: DocumentSession) {

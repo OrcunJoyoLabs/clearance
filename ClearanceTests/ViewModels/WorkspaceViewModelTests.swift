@@ -7,7 +7,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: fileURL)
 
@@ -21,7 +22,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let secondURL = try makeTempMarkdown(contents: "2")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: firstURL)
         viewModel.open(url: secondURL)
@@ -34,7 +36,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let secondURL = try makeTempMarkdown(contents: "2")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: firstURL)
         viewModel.open(url: secondURL)
@@ -49,7 +52,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: fileURL)
         XCTAssertEqual(viewModel.windowTitle, "sample.md")
@@ -67,7 +71,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
         viewModel.open(url: fileURL)
 
         try "outside change".write(to: fileURL, atomically: true, encoding: .utf8)
@@ -86,7 +91,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
         viewModel.open(url: fileURL)
         viewModel.mode = .edit
 
@@ -107,7 +113,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
         viewModel.open(url: fileURL)
 
         try "outside change".write(to: fileURL, atomically: true, encoding: .utf8)
@@ -123,7 +130,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let secondURL = try makeTempMarkdown(contents: "# Two")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: firstURL)
         viewModel.open(url: secondURL)
@@ -148,7 +156,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let thirdURL = try makeTempMarkdown(contents: "# Three")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: firstURL)
         viewModel.open(url: secondURL)
@@ -164,8 +173,10 @@ final class WorkspaceViewModelTests: XCTestCase {
         let renderURL = URL(string: "https://example.com/docs/INDEX.md")!
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
         let viewModel = WorkspaceViewModel(
             recentFilesStore: store,
+            watchedFolderStore: watchedStore,
             remoteDocumentLoader: { _ in
                 try await Task.sleep(nanoseconds: 30_000_000)
                 return RemoteDocument(requestedURL: requestedURL, renderURL: renderURL)
@@ -195,8 +206,10 @@ final class WorkspaceViewModelTests: XCTestCase {
         let secondRenderURL = URL(string: "https://example.com/second/INDEX.md")!
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
         let viewModel = WorkspaceViewModel(
             recentFilesStore: store,
+            watchedFolderStore: watchedStore,
             remoteDocumentLoader: { url in
                 if url == firstRequestedURL {
                     try? await Task.sleep(nanoseconds: 200_000_000)
@@ -224,8 +237,10 @@ final class WorkspaceViewModelTests: XCTestCase {
         let remoteRenderURL = URL(string: "https://example.com/docs/INDEX.md")!
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
         let viewModel = WorkspaceViewModel(
             recentFilesStore: store,
+            watchedFolderStore: watchedStore,
             remoteDocumentLoader: { _ in
                 RemoteDocument(requestedURL: remoteRequestedURL, renderURL: remoteRenderURL)
             }
@@ -261,7 +276,8 @@ final class WorkspaceViewModelTests: XCTestCase {
         let fileURL = try makeTempMarkdown(contents: "# One")
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(recentFilesStore: store)
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(recentFilesStore: store, watchedFolderStore: watchedStore)
 
         viewModel.open(url: fileURL)
         let path = RecentFileEntry.storageKey(for: fileURL)
@@ -273,68 +289,86 @@ final class WorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(store.entries.isEmpty)
     }
 
-    func testOpeningFolderImportsFilesImmediatelyWhenCountIsTenOrLess() throws {
-        let folderURL = try makeTempFolderWithFiles(["old.md", "new.md"])
-        try setModificationDate(Date(timeIntervalSinceReferenceDate: 10), for: folderURL.appendingPathComponent("old.md"))
-        try setModificationDate(Date(timeIntervalSinceReferenceDate: 20), for: folderURL.appendingPathComponent("new.md"))
+    func testOpeningFolderRegistersWatchedFolder() throws {
+        let folderURL = try makeTempFolderWithFiles(["notes.md"])
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
         let viewModel = WorkspaceViewModel(
             recentFilesStore: store,
+            watchedFolderStore: watchedStore,
+            openPanelService: MockOpenPanelService(openItemURL: folderURL)
+        )
+
+        let session = viewModel.promptAndOpenFile()
+
+        XCTAssertNotNil(session)
+        XCTAssertEqual(session?.url.lastPathComponent, "notes.md")
+        XCTAssertTrue(watchedStore.contains(path: folderURL.standardizedFileURL.path))
+    }
+
+    func testOpeningFolderOpensNewestFile() throws {
+        let folderURL = try makeTempFolderWithFiles(["old.md", "new.md"])
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: .now)!
+        try setModificationDate(twoDaysAgo, for: folderURL.appendingPathComponent("old.md"))
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(
+            recentFilesStore: store,
+            watchedFolderStore: watchedStore,
             openPanelService: MockOpenPanelService(openItemURL: folderURL)
         )
 
         let session = viewModel.promptAndOpenFile()
 
         XCTAssertEqual(session?.url.lastPathComponent, "new.md")
-        XCTAssertNil(viewModel.pendingFolderImport)
-        XCTAssertEqual(store.entries.map(\.path), [
-            folderURL.appendingPathComponent("new.md").path,
-            folderURL.appendingPathComponent("old.md").path
-        ])
     }
 
-    func testOpeningFolderQueuesConfirmationWhenCountExceedsTen() throws {
-        let fileNames = (1...11).map { "file-\($0).md" }
-        let folderURL = try makeTempFolderWithFiles(fileNames)
+    func testRefreshWatchedFolderPicksUpNewFiles() throws {
+        let folderURL = try makeTempFolderWithFiles(["initial.md"])
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
         let viewModel = WorkspaceViewModel(
             recentFilesStore: store,
-            openPanelService: MockOpenPanelService(openItemURL: folderURL)
-        )
-
-        let session = viewModel.promptAndOpenFile()
-
-        XCTAssertNil(session)
-        XCTAssertEqual(viewModel.pendingFolderImport?.urls.count, 11)
-        XCTAssertTrue(store.entries.isEmpty)
-        XCTAssertNil(viewModel.activeSession)
-    }
-
-    func testConfirmingPendingFolderImportAddsNewestFilesToTopOfHistory() throws {
-        let fileNames = (1...11).map { "file-\($0).md" }
-        let folderURL = try makeTempFolderWithFiles(fileNames)
-        for (index, fileName) in fileNames.enumerated() {
-            try setModificationDate(
-                Date(timeIntervalSinceReferenceDate: TimeInterval(index)),
-                for: folderURL.appendingPathComponent(fileName)
-            )
-        }
-        let newestURL = folderURL.appendingPathComponent("file-11.md")
-        let defaults = UserDefaults(suiteName: UUID().uuidString)!
-        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
-        let viewModel = WorkspaceViewModel(
-            recentFilesStore: store,
+            watchedFolderStore: watchedStore,
             openPanelService: MockOpenPanelService(openItemURL: folderURL)
         )
 
         _ = viewModel.promptAndOpenFile()
-        let session = viewModel.confirmPendingFolderImport()
+        let path = folderURL.standardizedFileURL.path
 
-        XCTAssertEqual(session?.url.path, newestURL.path)
-        XCTAssertEqual(store.entries.first?.path, newestURL.path)
-        XCTAssertNil(viewModel.pendingFolderImport)
+        try "# New".write(
+            to: folderURL.appendingPathComponent("added.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        viewModel.refreshWatchedFolder(path: path)
+
+        XCTAssertEqual(viewModel.scannedFiles[path]?.count, 2)
+    }
+
+    func testRemoveWatchedFolderCleansUpScanResults() throws {
+        let folderURL = try makeTempFolderWithFiles(["notes.md"])
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = RecentFilesStore(userDefaults: defaults, storageKey: "recent")
+        let watchedStore = WatchedFolderStore(userDefaults: defaults, storageKey: "watched")
+        let viewModel = WorkspaceViewModel(
+            recentFilesStore: store,
+            watchedFolderStore: watchedStore,
+            openPanelService: MockOpenPanelService(openItemURL: folderURL)
+        )
+
+        _ = viewModel.promptAndOpenFile()
+        let path = folderURL.standardizedFileURL.path
+        XCTAssertTrue(watchedStore.contains(path: path))
+
+        viewModel.removeWatchedFolder(path: path)
+
+        XCTAssertFalse(watchedStore.contains(path: path))
+        XCTAssertNil(viewModel.scannedFiles[path])
     }
 
     private func makeTempMarkdown(contents: String) throws -> URL {

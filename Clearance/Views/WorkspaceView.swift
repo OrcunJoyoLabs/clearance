@@ -263,26 +263,6 @@ struct WorkspaceView: View {
         }, message: {
             Text(viewModel.errorMessage ?? "")
         })
-        .alert(
-            "Add \(viewModel.pendingFolderImport?.urls.count ?? 0) Files To History?",
-            isPresented: Binding(
-                get: { viewModel.pendingFolderImport != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.cancelPendingFolderImport()
-                    }
-                }
-            )
-        ) {
-            Button("Add Files") {
-                _ = viewModel.confirmPendingFolderImport()
-            }
-            Button("Cancel", role: .cancel) {
-                viewModel.cancelPendingFolderImport()
-            }
-        } message: {
-            Text("This folder contains more than 10 supported files.")
-        }
     }
 
     private func popOutActiveSession() {
