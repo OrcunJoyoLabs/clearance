@@ -211,7 +211,13 @@ struct RecentFilesSidebar: View {
                 }
             }
 
-            items.sort { $0.sortDate > $1.sortDate }
+            // Recently-opened files first (by lastOpenedAt desc), then scanned-only files (by modDate desc)
+            items.sort {
+                if $0.isScannedOnly != $1.isScannedOnly {
+                    return !$0.isScannedOnly
+                }
+                return $0.sortDate > $1.sortDate
+            }
 
             let components = folder.path.split(separator: "/")
             let displayName = components.last.map(String.init) ?? folder.path
